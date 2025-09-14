@@ -1,0 +1,3006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hamro Mitra - Conversational Assistant v5.0</title>
+    
+    <!-- 
+    HAMRO MITRA CHATBOT - SETUP INSTRUCTIONS
+    ========================================
+    
+    1. API KEY SETUP:
+       - OpenAI: Already configured with your API key
+       - Google/Gemini: Already configured with your API keys
+       - Anup AI: Already configured with your API key
+       - Or use the Settings modal to enter keys (stored in localStorage)
+    
+    2. STREAMING CONFIGURATION:
+       - Set USE_STREAMING = true for real-time responses (OpenAI compatible)
+       - Set USE_STREAMING = false for batch responses
+    
+    3. API DOCUMENTATION:
+       - OpenAI Chat Completions: https://platform.openai.com/docs/api-reference/chat
+       - Bing Web Search: https://docs.microsoft.com/en-us/bing/search-apis/
+    
+    4. SECURITY NOTE:
+       - API keys are stored locally in your browser only
+       - For production, consider server-side proxy to protect keys
+    -->
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7f7f8;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #202123;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #444654;
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px;
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .new-chat-btn:hover {
+            background: #0d8f6f;
+        }
+
+        .conversations {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .conversation-item {
+            padding: 12px;
+            margin: 4px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .conversation-item:hover {
+            background: #2a2b32;
+        }
+
+        .conversation-item.active {
+            background: #343541;
+        }
+
+        /* Main Chat Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .header {
+            padding: 16px 24px;
+            background: white;
+            border-bottom: 1px solid #e5e5e5;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #202123;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        .settings-btn {
+            padding: 8px 12px;
+            background: #f7f7f8;
+            border: 1px solid #d9d9e3;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .settings-btn:hover {
+            background: #ececf1;
+        }
+
+        /* Chat Messages */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .message {
+            display: flex;
+            gap: 16px;
+            max-width: 768px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .avatar.user {
+            background: #10a37f;
+            color: white;
+        }
+
+        .avatar.assistant {
+            background: #ab68ff;
+            color: white;
+        }
+
+        .message-content {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: #10a37f;
+            color: white;
+            margin-left: 48px;
+        }
+
+        .message.assistant .message-content {
+            background: #f7f7f8;
+            color: #374151;
+            margin-right: 48px;
+        }
+
+        .message-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message:hover .message-controls {
+            opacity: 1;
+        }
+
+        .control-btn {
+            padding: 4px 8px;
+            background: #f7f7f8;
+            border: 1px solid #d9d9e3;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .control-btn:hover {
+            background: #ececf1;
+        }
+
+        /* Input Area */
+        .input-container {
+            padding: 24px;
+            background: white;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        .input-wrapper {
+            max-width: 768px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .message-input {
+            width: 100%;
+            padding: 12px 48px 12px 16px;
+            border: 1px solid #d9d9e3;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: none;
+            outline: none;
+            min-height: 48px;
+            max-height: 120px;
+        }
+
+        .message-input:focus {
+            border-color: #10a37f;
+        }
+
+        .send-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-btn:hover {
+            background: #0d8f6f;
+        }
+
+        .send-btn:disabled {
+            background: #d9d9e3;
+            cursor: not-allowed;
+        }
+
+        /* Enhanced Voice Controls */
+        .voice-controls {
+            display: flex;
+            gap: 8px;
+            margin-left: 8px;
+            align-items: center;
+        }
+
+        .voice-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mic-btn {
+            background: linear-gradient(135deg, #f7f7f8, #e5e7eb);
+            color: #374151;
+            border: 2px solid #d1d5db;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .mic-btn:hover {
+            background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .mic-btn.recording {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border-color: #dc2626;
+            animation: pulseRecord 1.5s infinite;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .mic-btn.listening {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border-color: #059669;
+            animation: pulseListening 2s infinite;
+        }
+
+        .mic-btn.processing {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border-color: #d97706;
+            animation: spin 1s linear infinite;
+        }
+
+        .speak-btn {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: white;
+            border: 2px solid #7c3aed;
+            box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+        }
+
+        .speak-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+        }
+
+        .speak-btn:disabled {
+            background: #d9d9e3;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .lang-selector {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-selector:hover {
+            background: #e5e7eb;
+        }
+
+        @keyframes pulseRecord {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+            50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); }
+            100% { transform: scale(1); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+        }
+
+        @keyframes pulseListening {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .voice-status {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(31, 41, 55, 0.9));
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            display: none;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 300px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .voice-status.show {
+            display: block;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        .voice-waveform {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin: 8px 0;
+        }
+
+        .wave-bar {
+            width: 3px;
+            height: 10px;
+            background: #10b981;
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+
+        .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes wave {
+            0%, 100% { height: 10px; }
+            50% { height: 20px; }
+        }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 16px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #9ca3af;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        /* Settings Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d9d9e3;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #10a37f;
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 12px;
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .save-btn:hover {
+            background: #0d8f6f;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                z-index: 100;
+                height: 100%;
+            }
+
+            .sidebar.open {
+                transform: translateX(260px);
+            }
+
+            .main-content {
+                width: 100%;
+            }
+
+            .message.user .message-content {
+                margin-left: 16px;
+            }
+
+            .message.assistant .message-content {
+                margin-right: 16px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="startNewChat()">+ New Chat</button>
+            </div>
+            <div class="conversations" id="conversations">
+                <!-- Conversations will be populated here -->
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h1>Hamro Mitra</h1>
+                <div class="header-controls">
+                    <!-- Settings removed for cleaner interface -->
+                </div>
+            </div>
+
+            <div class="chat-container" id="chatContainer">
+                <!-- Welcome message -->
+                <div class="message assistant">
+                    <div class="avatar assistant">AI</div>
+                    <div class="message-content">
+                        <p>Hello! I'm Hamro Mitra, your conversational assistant. I can help you with questions, provide information, and assist with various tasks.</p>
+                        <p><strong>To get started:</strong></p>
+                        <ul>
+                            <li>Ask me anything - I'll do my best to help!</li>
+                            <li>I can answer questions on various topics including science, math, and general knowledge</li>
+                            <li>I support both English and Nepali languages</li>
+                        </ul>
+                        <div class="message-controls">
+                            <button class="control-btn" onclick="copyMessage(this)">📋 Copy</button>
+                            <button class="control-btn" onclick="regenerateMessage(this)">🔄 Regenerate</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="message-input" 
+                        id="messageInput" 
+                        placeholder="Type your message here..."
+                        onkeydown="handleKeyDown(event)"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        ➤
+                    </button>
+                    <div class="voice-controls">
+                        <select class="lang-selector" id="langSelector" onchange="changeLanguage()" title="Voice Language">
+                            <option value="en-US">🇺🇸 English</option>
+                            <option value="ne-NP">🇳🇵 Nepali</option>
+                        </select>
+                        <button class="voice-btn mic-btn" id="micBtn" onclick="toggleVoiceRecognition()" title="Voice Input (Ctrl+M)">
+                            🎤
+                        </button>
+                    </div>
+                </div>
+                <div class="voice-status" id="voiceStatus"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Force cache refresh - Version 5.0 - PUSPA KAMAL DAHAL ADDED
+        console.log('Hamro Mitra v5.0 - Puspa Kamal Dahal response added');
+        
+        // Configuration
+        const CONFIG = {
+            USE_STREAMING: true,
+            OPENAI_API_KEY: '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',
+            GOOGLE_API_KEY: 'AIzaSyCz6IW48uLukc9E0fd0MySk8PMeWT59foI',
+            GOOGLE_CX: '', // Google Custom Search Engine ID - add if needed
+            BING_API_KEY: '',     // Add your Bing API key if needed
+            HUGGINGFACE_API_KEY: '',     // Add your Hugging Face API key if needed
+            ANTHROPIC_API_KEY: '',     // Add your Anthropic API key if needed
+            GEMINI_API_KEY: 'AIzaSyD6ky2B-vsEwcH_lhn-LgCS_cOVc9Mp-kI',
+            ANUP_API_KEY: 'fXEdtWHFxJnVZb4FOWLoqJC4skDhxh0VRk9XH9Hq',
+            MAX_TOKENS: 1000,
+            TEMPERATURE: 0.7,
+            // Free API endpoints
+            FREE_APIS: {
+                OLLAMA: 'http://localhost:11434/api/generate', // Local Ollama
+                HUGGINGFACE: 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large',
+                ANUP: 'https://api.anup.ai/v1/generate', // Free tier
+                GROQ: 'https://api.groq.com/openai/v1/chat/completions', // Free tier
+                TOGETHER: 'https://api.together.xyz/v1/chat/completions' // Free tier
+            }
+        };
+
+        // State Management (simplified - no chat storage)
+        let isTyping = false;
+        let currentMessages = [];
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettings();
+            initializeChat();
+        });
+
+        // Simplified Chat Management (no persistent storage)
+        function initializeChat() {
+            currentMessages = [];
+            renderMessages();
+            updateSidebar();
+        }
+
+        function startNewChat() {
+            currentMessages = [];
+            renderMessages();
+            updateSidebar();
+        }
+
+        function updateSidebar() {
+            const container = document.getElementById('conversations');
+            container.innerHTML = `
+                <div class="conversation-item active">
+                    Current Session
+                </div>
+                <div style="padding: 12px; color: #9ca3af; font-size: 12px;">
+                    💡 Enhanced with real-time web search
+                </div>
+            `;
+        }
+
+        // Simplified Message Management
+        function addMessage(role, content) {
+            const message = {
+                id: Date.now().toString(),
+                role,
+                content,
+                timestamp: new Date().toISOString()
+            };
+
+            currentMessages.push(message);
+            renderMessages();
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('chatContainer');
+            
+            if (currentMessages.length === 0) {
+                container.innerHTML = `
+                    <div class="message assistant">
+                        <div class="avatar assistant">AI</div>
+                        <div class="message-content">
+                            <p>Hello! I'm Hamro Mitra, your AI assistant created by Anup Raj Uprety.</p>
+                            <p><strong>Enhanced Features:</strong></p>
+                            <ul>
+                                <li>🔍 Real-time web search integration</li>
+                                <li>📊 Intelligent query classification</li>
+                                <li>🌐 Google Custom Search & SerpAPI support</li>
+                                <li>🤖 Multiple AI model routing</li>
+                                <li>📈 Current events and factual information</li>
+                            </ul>
+                            <p>Ask me anything - I'll search the web for current information when needed!</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = currentMessages.map(message => `
+                <div class="message ${message.role}">
+                    <div class="avatar ${message.role}">
+                        ${message.role === 'user' ? 'U' : 'AI'}
+                    </div>
+                    <div class="message-content">
+                        ${renderMarkdown(message.content)}
+                        ${message.role === 'assistant' ? `
+                            <div class="message-controls">
+                                <button class="control-btn" onclick="copyMessage(this)">📋 Copy</button>
+                                <button class="control-btn" onclick="regenerateMessage(this)">🔄 Regenerate</button>
+                                <button class="control-btn speak-btn" onclick="speakMessage(this)">🔊 Read</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Simple Markdown Renderer
+        function renderMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+                .replace(/^- (.*$)/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // Input Handling
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isTyping) return;
+
+            input.value = '';
+            addMessage('user', message);
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                const response = await composeAnswer(message);
+                hideTypingIndicator();
+                addMessage('assistant', response);
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage('assistant', `Sorry, I encountered an error: ${error.message}`);
+            }
+        }
+
+        function showTypingIndicator() {
+            isTyping = true;
+            const container = document.getElementById('chatContainer');
+            const indicator = document.createElement('div');
+            indicator.id = 'typingIndicator';
+            indicator.className = 'message assistant';
+            indicator.innerHTML = `
+                <div class="avatar assistant">AI</div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(indicator);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            isTyping = false;
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) indicator.remove();
+        }
+
+        // Enhanced AI Response with Real-time Web Search Integration
+        async function composeAnswer(userMessage) {
+            const settings = getSettings();
+            
+            // Parse query intent for intelligent routing
+            const queryIntent = parseQueryIntent(userMessage);
+            
+            // Handle basic conversational questions directly first
+            const directResponse = getDirectResponse(userMessage, queryIntent);
+            if (directResponse) {
+                return directResponse;
+            }
+            
+            // Try the enhanced Python backend
+            try {
+                const backendResponse = await queryEnhancedBackend(userMessage, queryIntent, settings);
+                if (backendResponse && backendResponse.answer) {
+                    return backendResponse.answer;
+                }
+            } catch (error) {
+                console.log('Enhanced backend failed, trying fallback methods:', error);
+            }
+            
+            // Try direct API calls if we have API keys
+            try {
+                const apiResponse = await tryDirectAPICall(userMessage, settings);
+                if (apiResponse) {
+                    return apiResponse;
+                }
+            } catch (error) {
+                console.log('Direct API call failed:', error);
+            }
+            
+            // Fallback to direct API calls with web search
+            if (queryIntent.needsWebSearch) {
+                try {
+                    const webSearchResponse = await getWebSearchWithAI(userMessage, settings);
+                    if (webSearchResponse) {
+                        return webSearchResponse;
+                    }
+                } catch (error) {
+                    console.log('Web search fallback failed:', error);
+                }
+            }
+            
+            // Final fallback with helpful message
+            return `I'm having trouble accessing my AI services right now. However, I can tell you that I'm Hamro Mitra, an AI assistant created by Anup Raj Uprety. For basic questions, please try rephrasing or check if the backend server is running. For complex queries, I need access to my AI models or web search capabilities.`;
+        }
+
+        // Handle basic conversational questions directly
+        function getDirectResponse(message, intent) {
+            const msg = message.toLowerCase().trim();
+            
+            // Greetings
+            if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey')) {
+                return "Hello! I'm Hamro Mitra, your AI assistant. How can I help you today?";
+            }
+            
+            // How are you
+            if (msg.includes('how are you')) {
+                return "I'm doing great, thank you for asking! I'm here and ready to help you with any questions or tasks you have. How are you doing?";
+            }
+            
+            // Who made you / Who created you
+            if (msg.includes('who made you') || msg.includes('who created you') || msg.includes('who built you')) {
+                return "I'm Hamro Mitra, an AI assistant created by Anup Raj Uprety. I'm designed to help with various tasks including answering questions, providing information, and assisting with different topics. How can I help you today?";
+            }
+            
+            // What are you
+            if (msg.includes('what are you') || msg.includes('what is hamro mitra')) {
+                return "I'm Hamro Mitra, an AI conversational assistant created by Anup Raj Uprety. I can help you with questions, provide information on various topics, assist with tasks, and have conversations in both English and Nepali. I'm equipped with web search capabilities and can access current information when needed.";
+            }
+            
+            // Thank you
+            if (msg.includes('thank you') || msg.includes('thanks')) {
+                return "You're very welcome! I'm happy to help. If you have any other questions or need assistance with anything else, feel free to ask!";
+            }
+            
+            // Goodbye
+            if (msg.includes('bye') || msg.includes('goodbye') || msg.includes('see you')) {
+                return "Goodbye! It was nice chatting with you. Feel free to come back anytime if you need help. Have a great day!";
+            }
+            
+            // Help
+            if (msg.includes('help') && msg.length < 20) {
+                return "I'm here to help! I can assist you with:\n\n• Answering questions on various topics\n• Providing current information through web search\n• Having conversations in English and Nepali\n• Helping with general knowledge, science, math, and more\n• Programming and technical questions\n\nJust ask me anything you'd like to know!";
+            }
+            
+            // About creator
+            if (msg.includes('anup upreti') || msg.includes('anup raj uprety') || msg.includes('tell me about anup')) {
+                return "Anup Raj Uprety is my creator and the developer behind Hamro Mitra. He's a skilled developer who created me to be a helpful AI assistant that can communicate in multiple languages and assist with various tasks. I'm proud to be his creation!";
+            }
+            
+            // Basic knowledge questions
+            if (msg.includes('what is velocity')) {
+                return "Velocity is a vector quantity that describes the rate of change of an object's position with respect to time. It has both magnitude (speed) and direction. For example, if a car travels 60 km/h northward, that's its velocity. It's different from speed, which only has magnitude without direction.";
+            }
+            
+            // Basic math
+            if (msg.includes('2+2') || msg.includes('2 + 2')) {
+                return "2 + 2 = 4";
+            }
+            
+            // Simple math patterns
+            const mathMatch = msg.match(/(\d+)\s*[\+\-\*\/]\s*(\d+)/);
+            if (mathMatch) {
+                try {
+                    const result = eval(mathMatch[0]);
+                    return `${mathMatch[0]} = ${result}`;
+                } catch (e) {
+                    return "I can help with basic math operations. Please use simple expressions like '2+2' or '5*3'.";
+                }
+            }
+            
+            // KP Oli question
+            if (msg.includes('kp oli') || msg.includes('k p oli') || msg.includes('oli')) {
+                return "KP Sharma Oli (Khadga Prasad Sharma Oli) is a prominent Nepali politician who has served as Prime Minister of Nepal multiple times. He is the chairman of the Communist Party of Nepal (Unified Marxist–Leninist) or CPN-UML. He has been a key figure in Nepali politics and has held various important positions in the government. For the most current information about his political status, please check recent news sources.";
+            }
+            
+            // Ram and Sita question - Hindu religion
+            if ((msg.includes('ram') && msg.includes('sita')) || (msg.includes('rama') && msg.includes('sita'))) {
+                return "Ram (Rama) and Sita are central figures in Hindu religion and mythology:\n\n• **Ram (Rama)**: The seventh avatar of Lord Vishnu, protagonist of the epic Ramayana. He represents dharma (righteousness), virtue, and the ideal king. Known for his devotion to duty, truth, and moral principles.\n\n• **Sita**: Ram's wife and an incarnation of Goddess Lakshmi. She represents purity, devotion, and feminine strength. Known for her unwavering loyalty and virtue.\n\n• **Their Story**: The Ramayana tells of their love, Sita's abduction by demon king Ravana, Ram's quest to rescue her, and their eventual reunion. Their relationship symbolizes ideal marriage and devotion in Hindu culture.\n\n• **Significance**: They are worshipped as divine couple representing perfect love, duty, and righteousness. Their story teaches important moral and spiritual lessons.";
+            }
+            
+            // Common people questions
+            if (msg.includes('who is ram') && !msg.includes('program') && !msg.includes('sita')) {
+                return "Ram could refer to several people or concepts. In Hindu mythology, Ram (or Rama) is a major deity and the protagonist of the Ramayana epic. If you're asking about a specific person named Ram, please provide more context so I can give you a more specific answer.";
+            }
+            
+            if (msg.includes('sher bahadur deuba') || msg.includes('deuba')) {
+                return "Sher Bahadur Deuba is a prominent Nepali politician who has served as Prime Minister of Nepal multiple times. He's the president of the Nepali Congress party and has been a key figure in Nepali politics for decades. For current information about his political status, please check recent news sources.";
+            }
+            
+            // Puspa Kamal Dahal (Prachanda)
+            if (msg.includes('puspa kamal dahal') || msg.includes('prachanda') || msg.includes('pushpa kamal dahal')) {
+                return "Puspa Kamal Dahal, commonly known as Prachanda, is a prominent Nepali politician and former Prime Minister of Nepal. He is the chairman of the Communist Party of Nepal (Maoist Centre) and was a key leader of the Maoist insurgency (1996-2006). He has served as Prime Minister multiple times and remains an influential figure in Nepali politics. For current information about his political status, please check recent news sources.";
+            }
+            
+            return null; // No direct response available
+        }
+        
+        // Try direct API calls with available keys
+        async function tryDirectAPICall(message, settings) {
+            // Try OpenAI first if key is available
+            if (settings.openaiKey) {
+                try {
+                    return await callOpenAI("You are Hamro Mitra, a helpful AI assistant created by Anup Raj Uprety. Be conversational and helpful.", message, settings);
+                } catch (error) {
+                    console.log('OpenAI call failed:', error);
+                }
+            }
+            
+            // Try Gemini if key is available
+            if (settings.geminiKey) {
+                try {
+                    return await callGemini(message, settings);
+                } catch (error) {
+                    console.log('Gemini call failed:', error);
+                }
+            }
+            
+            return null;
+        }
+
+        // Parse query intent for intelligent processing
+        function parseQueryIntent(message) {
+            const msg = message.toLowerCase();
+            
+            const intent = {
+                type: 'general',
+                needsWebSearch: false,
+                isFactual: false,
+                isCurrentEvent: false,
+                confidence: 0.5
+            };
+            
+            // Check for current events
+            if (msg.includes('current') || msg.includes('latest') || msg.includes('recent') || 
+                msg.includes('news') || msg.includes('today') || msg.includes('2024') || msg.includes('2025')) {
+                intent.type = 'current_events';
+                intent.needsWebSearch = true;
+                intent.isCurrentEvent = true;
+                intent.confidence = 0.9;
+            }
+            
+            // Check for factual queries
+            else if (msg.includes('what is') || msg.includes('who is') || msg.includes('when did') || 
+                     msg.includes('where is') || msg.includes('how much') || msg.includes('price')) {
+                intent.type = 'factual';
+                intent.needsWebSearch = true;
+                intent.isFactual = true;
+                intent.confidence = 0.8;
+            }
+            
+            // Check for programming questions
+            else if (msg.includes('code') || msg.includes('programming') || msg.includes('javascript') || 
+                     msg.includes('python') || msg.includes('html') || msg.includes('css')) {
+                intent.type = 'programming';
+                intent.needsWebSearch = false;
+                intent.confidence = 0.7;
+            }
+            
+            // Check for conversational/personal
+            else if (msg.includes('hello') || msg.includes('hi') || msg.includes('how are you') || 
+                     msg.includes('who made you') || msg.includes('who created you')) {
+                intent.type = 'conversational';
+                intent.needsWebSearch = false;
+                intent.confidence = 0.9;
+            }
+            
+            return intent;
+        }
+
+        // Enhanced backend query function
+        async function queryEnhancedBackend(message, intent, settings) {
+            try {
+                const response = await fetch('http://localhost:5000/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: message,
+                        intent: intent,
+                        enable_web_search: intent.needsWebSearch,
+                        settings: settings
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Backend error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Enhanced backend query failed:', error);
+                throw error;
+            }
+        }
+
+        // Web search with AI integration
+        async function getWebSearchWithAI(query, settings) {
+            try {
+                // Try Google Custom Search if available
+                if (settings.googleKey && settings.googleCx) {
+                    const searchResults = await googleCustomSearch(query, settings);
+                    if (searchResults && searchResults.length > 0) {
+                        return await synthesizeWebResults(query, searchResults, settings);
+                    }
+                }
+
+                // Fallback to other methods
+                return await fallbackWebSearch(query, settings);
+            } catch (error) {
+                console.error('Web search with AI failed:', error);
+                return null;
+            }
+        }
+
+        // Google Custom Search implementation
+        async function googleCustomSearch(query, settings) {
+            try {
+                const url = `https://www.googleapis.com/customsearch/v1?key=${settings.googleKey}&cx=${settings.googleCx}&q=${encodeURIComponent(query)}&num=5`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Google Search API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.items || [];
+            } catch (error) {
+                console.error('Google Custom Search failed:', error);
+                return null;
+            }
+        }
+
+        // Synthesize web results with AI
+        async function synthesizeWebResults(query, results, settings) {
+            try {
+                const context = results.slice(0, 3).map(item => 
+                    `${item.title}: ${item.snippet}`
+                ).join('\n\n');
+
+                const systemPrompt = `You are Hamro Mitra, an AI assistant with real-time web search capabilities. 
+                Based on the following current web search results, provide a comprehensive, accurate answer to the user's question.
+                Be conversational and helpful. Don't mention that you're using search results unless asked.
+                
+                Web Search Results:
+                ${context}`;
+
+                // Use OpenAI if available
+                if (settings.openaiKey) {
+                    return await callOpenAI(systemPrompt, query, settings);
+                }
+
+                // Fallback to basic synthesis
+                return `Based on current information: ${context.substring(0, 300)}...`;
+            } catch (error) {
+                console.error('Result synthesis failed:', error);
+                return null;
+            }
+        }
+
+        // OpenAI API call
+        async function callOpenAI(systemPrompt, userMessage, settings) {
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${settings.openaiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-3.5-turbo',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userMessage }
+                        ],
+                        max_tokens: 500,
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`OpenAI API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            } catch (error) {
+                console.error('OpenAI API call failed:', error);
+                return null;
+            }
+        }
+
+        // Gemini API call
+        async function callGemini(userMessage, settings) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${settings.geminiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `You are Hamro Mitra, a helpful AI assistant created by Anup Raj Uprety. Be conversational and helpful.\n\nUser: ${userMessage}`
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 500
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Gemini API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error('Gemini API call failed:', error);
+                return null;
+            }
+        }
+
+        // Fallback web search
+        async function fallbackWebSearch(query, settings) {
+            return `I understand you're asking about "${query}". Sorry for the inconvenience, but I am not getting this answer right now. Please try rephrasing your question or ask me something else I can help with.`;
+        }
+
+        // Simplified classification function
+        function classifyQuestion(message) {
+            return parseQueryIntent(message).type;
+        }
+
+        // Determine if web search should be used (simplified - now handled by parseQueryIntent)
+        function shouldUseWebSearch(message) {
+            return parseQueryIntent(message).needsWebSearch;
+        }
+
+        // Route to optimal API based on question type
+        async function routeToOptimalAPI(questionType, systemPrompt, userMessage, settings) {
+            // Always try Python backend first for all questions
+            try {
+                const backendResponse = await queryPythonBackend(userMessage, settings);
+                if (backendResponse && backendResponse.answer) {
+                    return backendResponse.answer; // Return clean answer without formatting
+                }
+            } catch (error) {
+                console.log('Python backend failed, falling back to other methods:', error);
+            }
+            
+            // For current events, prioritize APIs with recent training data
+            if (questionType === 'current_events') {
+                if (settings.openaiKey && settings.openaiKey.trim() !== '') {
+                    return await openAIAdapter(systemPrompt, userMessage, settings);
+                }
+                if (settings.geminiKey && settings.geminiKey.trim() !== '') {
+                    return await geminiAdapter(systemPrompt, userMessage, settings);
+                }
+            }
+            
+            // For programming, try technical-focused APIs
+            if (questionType === 'programming') {
+                if (settings.openaiKey && settings.openaiKey.trim() !== '') {
+                    return await openAIAdapter(systemPrompt, userMessage, settings);
+                }
+                return await groqAdapter(userMessage, settings);
+            }
+            
+            // Enhanced AI response composition with comprehensive data sources
+            return await composeAIResponse(userMessage, settings);
+        }
+
+        // API Adapters
+        async function openAIAdapter(systemPrompt, userMessage, settings) {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${settings.openaiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini', // Updated to latest model
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage }
+                    ],
+                    max_tokens: CONFIG.MAX_TOKENS,
+                    temperature: CONFIG.TEMPERATURE,
+                    stream: settings.enableStreaming
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`OpenAI API error: ${response.status}`);
+            }
+
+            if (settings.enableStreaming) {
+                return await handleStreamingResponse(response);
+            } else {
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+        }
+
+        // Google Gemini Adapter
+        async function geminiAdapter(systemPrompt, userMessage, settings) {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${settings.geminiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `${systemPrompt}\n\nUser: ${userMessage}`
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: CONFIG.TEMPERATURE,
+                        maxOutputTokens: CONFIG.MAX_TOKENS
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Gemini API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.candidates[0]?.content?.parts[0]?.text || "I couldn't generate a response.";
+        }
+
+        // Claude (Anthropic) Adapter
+        async function claudeAdapter(systemPrompt, userMessage, settings) {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'x-api-key': settings.anthropicKey,
+                    'Content-Type': 'application/json',
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    max_tokens: CONFIG.MAX_TOKENS,
+                    temperature: CONFIG.TEMPERATURE,
+                    system: systemPrompt,
+                    messages: [
+                        { role: 'user', content: userMessage }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Claude API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.content[0]?.text || "I couldn't generate a response.";
+        }
+
+        // Groq Adapter (Free tier)
+        async function groqAdapter(userMessage, settings) {
+            try {
+                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer gsk_your_free_key_here`, // Free tier key
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'mixtral-8x7b-32768',
+                        messages: [
+                            { role: 'system', content: 'You are Hamro Mitra, a helpful AI assistant.' },
+                            { role: 'user', content: userMessage }
+                        ],
+                        max_tokens: 1000,
+                        temperature: 0.7
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.choices[0]?.message?.content;
+                }
+            } catch (error) {
+                console.log('Groq API failed:', error);
+            }
+            
+            throw new Error('Groq API failed');
+        }
+
+        // Hugging Face Adapter (with API key)
+        async function huggingFaceAdapter(userMessage, settings) {
+            const response = await fetch('https://api-inference.huggingface.co/models/microsoft/DialoGPT-large', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${settings.huggingfaceKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: userMessage,
+                    parameters: {
+                        max_length: CONFIG.MAX_TOKENS,
+                        temperature: CONFIG.TEMPERATURE,
+                        do_sample: true
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Hugging Face API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data[0]?.generated_text || data.generated_text || "I'm having trouble processing that request.";
+        }
+
+        // Free Hugging Face Inference API (no key required)
+        async function freeHuggingFaceAdapter(userMessage) {
+            try {
+                const response = await fetch('https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: userMessage,
+                        parameters: {
+                            max_length: 200,
+                            temperature: 0.7,
+                            do_sample: true,
+                            return_full_text: false
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Free API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    // Model might be loading, try alternative
+                    return await alternativeFreeAPI(userMessage);
+                }
+                
+                return data[0]?.generated_text || data.generated_text || await alternativeFreeAPI(userMessage);
+                
+            } catch (error) {
+                console.log('Free Hugging Face failed, trying alternative:', error);
+                return await alternativeFreeAPI(userMessage);
+            }
+        }
+
+        // Alternative free API or intelligent responses
+        async function alternativeFreeAPI(userMessage) {
+            // Try a different free model
+            try {
+                const response = await fetch('https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: userMessage
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data[0]?.generated_text) {
+                        return data[0].generated_text;
+                    }
+                }
+            } catch (error) {
+                console.log('Alternative API also failed:', error);
+            }
+
+            // Fallback to intelligent demo response
+            return getIntelligentDemoResponse(userMessage);
+        }
+
+        async function handleStreamingResponse(response) {
+            // Simplified streaming implementation
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        // Wikipedia API Adapter
+        async function wikipediaAdapter(query) {
+            try {
+                // First, search for relevant articles
+                const searchResponse = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`);
+                
+                if (searchResponse.ok) {
+                    const data = await searchResponse.json();
+                    return {
+                        title: data.title,
+                        extract: data.extract,
+                        url: data.content_urls?.desktop?.page,
+                        thumbnail: data.thumbnail?.source
+                    };
+                }
+                
+                // Fallback to search API
+                const fallbackResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&list=search&srsearch=${encodeURIComponent(query)}&origin=*`);
+                const fallbackData = await fallbackResponse.json();
+                
+                if (fallbackData.query?.search?.length > 0) {
+                    const pageTitle = fallbackData.query.search[0].title;
+                    const pageResponse = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`);
+                    
+                    if (pageResponse.ok) {
+                        const pageData = await pageResponse.json();
+                        return {
+                            title: pageData.title,
+                            extract: pageData.extract,
+                            url: pageData.content_urls?.desktop?.page,
+                            thumbnail: pageData.thumbnail?.source
+                        };
+                    }
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Wikipedia API failed:', error);
+                return null;
+            }
+        }
+
+        // Wikidata API Adapter
+        async function wikidataAdapter(query) {
+            try {
+                const response = await fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&format=json&origin=*`);
+                const data = await response.json();
+                
+                if (data.search && data.search.length > 0) {
+                    const entity = data.search[0];
+                    return {
+                        id: entity.id,
+                        label: entity.label,
+                        description: entity.description,
+                        url: entity.concepturi
+                    };
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Wikidata API failed:', error);
+                return null;
+            }
+        }
+
+        // arXiv API Adapter
+        async function arxivAdapter(query) {
+            try {
+                const response = await fetch(`https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&start=0&max_results=5`);
+                const text = await response.text();
+                
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, 'text/xml');
+                const entries = xmlDoc.getElementsByTagName('entry');
+                
+                const papers = [];
+                for (let i = 0; i < Math.min(entries.length, 3); i++) {
+                    const entry = entries[i];
+                    papers.push({
+                        title: entry.getElementsByTagName('title')[0]?.textContent?.trim(),
+                        summary: entry.getElementsByTagName('summary')[0]?.textContent?.trim().substring(0, 200) + '...',
+                        authors: Array.from(entry.getElementsByTagName('author')).map(author => 
+                            author.getElementsByTagName('name')[0]?.textContent
+                        ).join(', '),
+                        url: entry.getElementsByTagName('id')[0]?.textContent,
+                        published: entry.getElementsByTagName('published')[0]?.textContent?.split('T')[0]
+                    });
+                }
+                
+                return papers;
+            } catch (error) {
+                console.error('arXiv API failed:', error);
+                return [];
+            }
+        }
+
+        // DuckDuckGo Instant Answers API
+        async function duckduckgoAdapter(query) {
+            try {
+                const response = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+                const data = await response.json();
+                
+                return {
+                    abstract: data.Abstract,
+                    abstractText: data.AbstractText,
+                    abstractURL: data.AbstractURL,
+                    definition: data.Definition,
+                    definitionURL: data.DefinitionURL,
+                    answer: data.Answer,
+                    answerType: data.AnswerType,
+                    infobox: data.Infobox
+                };
+            } catch (error) {
+                console.error('DuckDuckGo API failed:', error);
+                return null;
+            }
+        }
+
+        // World Bank Data API Adapter
+        async function worldBankAdapter(query) {
+            try {
+                // Search for indicators related to the query
+                const response = await fetch(`https://api.worldbank.org/v2/indicator?format=json&per_page=5&source=2&q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data && data[1] && data[1].length > 0) {
+                    return data[1].map(indicator => ({
+                        id: indicator.id,
+                        name: indicator.name,
+                        description: indicator.sourceNote,
+                        source: indicator.source?.value,
+                        topics: indicator.topics?.map(t => t.value).join(', ')
+                    }));
+                }
+                
+                return [];
+            } catch (error) {
+                console.error('World Bank API failed:', error);
+                return [];
+            }
+        }
+
+        // Semantic Scholar API Adapter
+        async function semanticScholarAdapter(query) {
+            try {
+                const response = await fetch(`https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=3&fields=title,abstract,authors,year,url,citationCount`);
+                const data = await response.json();
+                
+                if (data.data && data.data.length > 0) {
+                    return data.data.map(paper => ({
+                        title: paper.title,
+                        abstract: paper.abstract?.substring(0, 200) + '...',
+                        authors: paper.authors?.map(a => a.name).join(', '),
+                        year: paper.year,
+                        citations: paper.citationCount,
+                        url: paper.url
+                    }));
+                }
+                
+                return [];
+            } catch (error) {
+                console.error('Semantic Scholar API failed:', error);
+                return [];
+            }
+        }
+
+        // Google Custom Search Adapter
+        async function googleSearchAdapter(query, settings) {
+            try {
+                const response = await fetch(`https://www.googleapis.com/customsearch/v1?key=${settings.googleApiKey}&cx=${settings.googleSearchEngineId}&q=${encodeURIComponent(query)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Google Search API error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.items?.slice(0, 5).map(item => ({
+                    title: item.title,
+                    snippet: item.snippet,
+                    link: item.link
+                })) || [];
+            } catch (error) {
+                console.error('Google Search failed:', error);
+                return [];
+            }
+        }
+
+        async function bingSearchAdapter(query, settings) {
+            const response = await fetch(`https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}&count=5`, {
+                headers: {
+                    'Ocp-Apim-Subscription-Key': settings.bingKey
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Bing API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            return data.webPages?.value?.map(result => 
+                `**${result.name}**\n${result.snippet}\nSource: ${result.url}`
+            ).join('\n\n') || '';
+        }
+
+        // Enhanced intelligent routing system for data sources
+        async function getComprehensiveResponse(userMessage, questionType, settings) {
+            const msg = userMessage.toLowerCase();
+            let response = '';
+            let sources = [];
+            
+            // Determine best data sources based on question type
+            const dataSources = await selectDataSources(userMessage, questionType);
+            
+            // Collect information from multiple sources
+            for (const source of dataSources) {
+                try {
+                    const result = await source.fetch(userMessage, settings);
+                    if (result) {
+                        sources.push({
+                            name: source.name,
+                            data: result
+                        });
+                    }
+                } catch (error) {
+                    console.log(`${source.name} failed:`, error);
+                }
+            }
+            
+            // Format comprehensive response
+            if (sources.length > 0) {
+                response = formatComprehensiveResponse(userMessage, sources);
+            } else {
+                response = getIntelligentDemoResponse(userMessage);
+            }
+            
+            return response;
+        }
+
+        // Select appropriate data sources based on query type
+        async function selectDataSources(userMessage, questionType) {
+            const msg = userMessage.toLowerCase();
+            const sources = [];
+            
+            // Academic/Research queries
+            if (questionType === 'academic' || msg.includes('research') || msg.includes('study') || msg.includes('paper')) {
+                sources.push(
+                    { name: 'arXiv', fetch: arxivAdapter },
+                    { name: 'Semantic Scholar', fetch: semanticScholarAdapter },
+                    { name: 'Wikipedia', fetch: wikipediaAdapter }
+                );
+            }
+            
+            // Science/Educational queries
+            if (questionType === 'science' || msg.includes('physics') || msg.includes('chemistry') || msg.includes('biology') || msg.includes('math')) {
+                sources.push(
+                    { name: 'Wikipedia', fetch: wikipediaAdapter },
+                    { name: 'Wikidata', fetch: wikidataAdapter },
+                    { name: 'arXiv', fetch: arxivAdapter }
+                );
+            }
+            
+            // Current events/News
+            if (questionType === 'current_events' || msg.includes('news') || msg.includes('recent') || msg.includes('latest')) {
+                sources.push(
+                    { name: 'Google Search', fetch: googleSearchAdapter },
+                    { name: 'Bing Search', fetch: bingSearchAdapter },
+                    { name: 'DuckDuckGo', fetch: duckduckgoAdapter }
+                );
+            }
+            
+            // Economics/Statistics
+            if (msg.includes('economy') || msg.includes('gdp') || msg.includes('statistics') || msg.includes('data') || msg.includes('population')) {
+                sources.push(
+                    { name: 'World Bank', fetch: worldBankAdapter },
+                    { name: 'Wikipedia', fetch: wikipediaAdapter },
+                    { name: 'Wikidata', fetch: wikidataAdapter }
+                );
+            }
+            
+            // General knowledge - always include Wikipedia and DuckDuckGo
+            if (sources.length === 0) {
+                sources.push(
+                    { name: 'Wikipedia', fetch: wikipediaAdapter },
+                    { name: 'DuckDuckGo', fetch: duckduckgoAdapter },
+                    { name: 'Wikidata', fetch: wikidataAdapter }
+                );
+            }
+            
+            return sources;
+        }
+
+        // Format comprehensive response from multiple sources
+        function formatComprehensiveResponse(userMessage, sources) {
+            let response = `# ${userMessage}\n\n`;
+            
+            for (const source of sources) {
+                response += formatSourceData(source.name, source.data);
+            }
+            
+            response += `\n---\n\n**Sources:** ${sources.map(s => s.name).join(', ')}\n\n`;
+            
+            return response;
+        }
+
+        // Format data from different sources
+        function formatSourceData(sourceName, data) {
+            let formatted = `\n## ${sourceName}\n\n`;
+            
+            switch (sourceName) {
+                case 'Wikipedia':
+                    if (data.title && data.extract) {
+                        formatted += `**${data.title}**\n\n${data.extract}\n\n`;
+                        if (data.url) formatted += `[Read more on Wikipedia](${data.url})\n\n`;
+                    }
+                    break;
+                    
+                case 'Wikidata':
+                    if (data.label && data.description) {
+                        formatted += `**${data.label}:** ${data.description}\n\n`;
+                        if (data.url) formatted += `[View on Wikidata](${data.url})\n\n`;
+                    }
+                    break;
+                    
+                case 'arXiv':
+                    if (Array.isArray(data) && data.length > 0) {
+                        formatted += `**Recent Research Papers:**\n\n`;
+                        data.forEach(paper => {
+                            formatted += `• **${paper.title}**\n`;
+                            formatted += `  Authors: ${paper.authors}\n`;
+                            formatted += `  Published: ${paper.published}\n`;
+                            formatted += `  ${paper.summary}\n`;
+                            if (paper.url) formatted += `  [View Paper](${paper.url})\n\n`;
+                        });
+                    }
+                    break;
+                    
+                case 'Semantic Scholar':
+                    if (Array.isArray(data) && data.length > 0) {
+                        formatted += `**Academic Papers:**\n\n`;
+                        data.forEach(paper => {
+                            formatted += `• **${paper.title}** (${paper.year})\n`;
+                            formatted += `  Authors: ${paper.authors}\n`;
+                            formatted += `  Citations: ${paper.citations}\n`;
+                            formatted += `  ${paper.abstract}\n\n`;
+                        });
+                    }
+                    break;
+                    
+                case 'World Bank':
+                    if (Array.isArray(data) && data.length > 0) {
+                        formatted += `**Economic Data & Indicators:**\n\n`;
+                        data.forEach(indicator => {
+                            formatted += `• **${indicator.name}**\n`;
+                            formatted += `  ${indicator.description}\n`;
+                            formatted += `  Source: ${indicator.source}\n\n`;
+                        });
+                    }
+                    break;
+                    
+                case 'DuckDuckGo':
+                    if (data.abstract || data.definition || data.answer) {
+                        if (data.definition) formatted += `**Definition:** ${data.definition}\n\n`;
+                        if (data.abstract) formatted += `${data.abstract}\n\n`;
+                        if (data.answer) formatted += `**Answer:** ${data.answer}\n\n`;
+                    }
+                    break;
+                    
+                default:
+                    if (Array.isArray(data)) {
+                        data.forEach(item => {
+                            if (typeof item === 'string') {
+                                formatted += `${item}\n\n`;
+                            } else if (item.title && item.snippet) {
+                                formatted += `• **${item.title}**\n${item.snippet}\n\n`;
+                            }
+                        });
+                    }
+            }
+            
+            return formatted;
+        }
+
+        // Enhanced intelligent response with web search integration
+        function getEnhancedIntelligentResponse(userMessage, questionType, webResults) {
+            const msg = userMessage.toLowerCase();
+            
+            // If we have web results, incorporate them
+            if (webResults) {
+                return `Based on current web search results:\n\n${webResults}\n\n---\n\nI found recent information about "${userMessage}". The search results above provide current data.`;
+            }
+            
+            // Enhanced responses based on question type
+            switch (questionType) {
+                case 'current_events':
+                    return `For current events and latest information about "${userMessage}", I need access to real-time data sources.\n\n**To get current information:**\n• Add Google Custom Search API key for real-time web results\n• Add OpenAI or Gemini API key for analysis of current events\n• Enable web search in Settings\n\n**What I can help with now:**\n• General background information\n• Historical context\n• Analysis frameworks\n\nWould you like me to provide general background information about this topic?`;
+                
+                case 'programming':
+                    return `I can help with ${userMessage.includes('javascript') ? 'JavaScript' : userMessage.includes('python') ? 'Python' : 'programming'}!\n\n**Programming assistance available:**\n• Code structure and best practices\n• Debugging approaches\n• Algorithm explanations\n• Framework guidance\n\n**Enhanced features with API:**\n• Real-time code examples\n• Latest framework updates\n• Current best practices\n\nMy creator Anup Raj Uprety is an excellent programmer, so I'm designed with solid coding principles. What specific programming challenge can I help you with?`;
+                
+                case 'science':
+                    return `Fascinating scientific topic! My creator Anup Raj Uprety researches consciousness and existence, so I'm well-versed in scientific thinking.\n\n**Scientific areas I can discuss:**\n• Research methodologies\n• Consciousness studies\n• Philosophical implications of science\n• General scientific principles\n\n**For cutting-edge research:**\n• Add API keys for access to latest papers\n• Enable web search for recent discoveries\n• Get real-time scientific updates\n\nWhat aspect of "${userMessage}" interests you most?`;
+                
+                case 'philosophy':
+                    return `Deep philosophical question! This aligns with my creator's research on "consciousness as a cause of existence."\n\n**Philosophical exploration:**\n• Consciousness and reality\n• Existence and meaning\n• Mind-body problems\n• Scientific philosophy\n\n**Key insights from Anup Raj Uprety's research:**\n• Consciousness might be fundamental to reality\n• The relationship between awareness and existence\n• Bridging science and philosophy\n\nFor detailed philosophical discussions with current academic perspectives, add an API key in Settings. What specific aspect would you like to explore?`;
+                
+                case 'creative':
+                    return `Creative expression! My creator Anup Raj Uprety has his own poetry collection, combining technical expertise with artistic vision.\n\n**Creative assistance:**\n• Poetry structure and techniques\n• Creative writing approaches\n• Artistic inspiration\n• Technical-creative fusion\n\n**Enhanced creative features:**\n• AI-powered writing assistance\n• Style analysis and suggestions\n• Current literary trends\n\nThe blend of programming and poetry shows how logic and creativity complement each other. What creative project can I help you with?`;
+                
+                default:
+                    return getIntelligentDemoResponse(userMessage);
+            }
+        }
+
+        function getDemoResponse(message) {
+            const responses = [
+                "Sorry for the inconvenience, but I am not getting this answer right now. Please try rephrasing your question or ask me something else I can help with.",
+                "That's an interesting question! Let me try to help you with what I know, though I might not have the most current information.",
+                "I'd be happy to help! Please ask me about topics I'm familiar with, and I'll do my best to assist you."
+            ];
+            
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        // Comprehensive multitasking AI response system
+        function getIntelligentDemoResponse(userMessage) {
+            const msg = userMessage.toLowerCase();
+            
+            // C Programming specific detection
+            if (msg.includes('c program') || msg.includes('write c') || (msg.includes('program') && msg.includes('add') && msg.includes('number'))) {
+                return `Here's a complete C program to add two numbers:\n\n\`\`\`c\n#include <stdio.h>\n\nint main() {\n    int num1, num2, sum;\n    \n    printf("Enter first number: ");\n    scanf("%d", &num1);\n    \n    printf("Enter second number: ");\n    scanf("%d", &num2);\n    \n    sum = num1 + num2;\n    \n    printf("Sum = %d\\n", sum);\n    \n    return 0;\n}\n\`\`\`\n\n**Program Explanation:**\n• \`#include <stdio.h>\` - Include standard input/output library\n• \`int num1, num2, sum;\` - Declare integer variables\n• \`scanf()\` - Read user input\n• \`printf()\` - Display output\n• \`sum = num1 + num2;\` - Addition operation\n\n**Advanced C Programming Topics:**\n• Functions and modular programming\n• Pointers and memory management\n• Data structures (arrays, linked lists, trees)\n• File handling and I/O operations\n• Dynamic memory allocation\n\nNeed help with any specific C programming concept?`;
+            }
+            
+            // Biology and Science Questions
+            if (msg.includes('earthworm') || msg.includes('what is earthworm')) {
+                return `**Earthworms** are segmented worms belonging to the phylum Annelida, class Oligochaeta. They're essential ecosystem engineers!\n\n**Biological Classification:**\n• **Kingdom:** Animalia\n• **Phylum:** Annelida\n• **Class:** Oligochaeta\n• **Common Species:** Lumbricus terrestris (common earthworm)\n\n**Anatomy & Physiology:**\n• **Body Structure:** Segmented cylindrical body with 100-150 segments\n• **Digestive System:** Mouth → pharynx → esophagus → crop → gizzard → intestine\n• **Circulatory System:** Closed circulatory system with 5 pairs of hearts\n• **Respiratory System:** Gas exchange through moist skin\n• **Nervous System:** Simple brain (cerebral ganglia) with ventral nerve cord\n\n**Ecological Importance:**\n• **Soil Aeration:** Create tunnels that improve soil structure\n• **Nutrient Cycling:** Break down organic matter into rich castings\n• **Decomposition:** Process dead plant material and organic waste\n• **Food Web:** Important food source for birds, amphibians, and other animals\n\n**Reproduction:**\n• Hermaphroditic (both male and female organs)\n• Cross-fertilization with cocoon formation\n• Can regenerate lost segments\n\n**Agricultural Benefits:**\n• Improve soil fertility and structure\n• Increase water infiltration\n• Enhance plant growth and crop yields\n\nWould you like to know more about any specific aspect of earthworm biology?`;
+            }
+            
+            // Creator/About questions - Enhanced to catch all name variations
+            if (msg.includes('who made you') || msg.includes('who created you') || msg.includes('your creator') || msg.includes('who built you') ||
+                msg.includes('anup') || msg.includes('upreti') || msg.includes('anup raj') || msg.includes('anup upreti') || 
+                msg.includes('anup raj upreti') || msg.includes('who is anup') || msg.includes('about anup') ||
+                msg.includes('tell me about anup') || msg.includes('anup raj uprety') || msg.includes('anup uprety')) {
+                return getAnupInformation();
+            }
+            
+            // Programming questions - Enhanced with comprehensive knowledge
+            if (msg.includes('code') || msg.includes('programming') || msg.includes('javascript') || msg.includes('python') || msg.includes('html') || msg.includes('css') || msg.includes('react') || msg.includes('node') || msg.includes('api')) {
+                const language = userMessage.includes('javascript') ? 'JavaScript' : 
+                               userMessage.includes('python') ? 'Python' : 
+                               userMessage.includes('react') ? 'React' : 
+                               userMessage.includes('node') ? 'Node.js' : 'programming';
+                
+                return `I'm well-versed in ${language} and modern development practices! Here's comprehensive guidance:\n\n**${language} Best Practices:**\n• Use modern ES6+ syntax and features\n• Implement proper error handling and validation\n• Follow SOLID principles and clean code practices\n• Write comprehensive tests (unit, integration, e2e)\n• Use version control effectively with Git\n• Implement proper security measures\n• Optimize for performance and scalability\n\n**Current Industry Standards:**\n• TypeScript for type safety\n• Modern frameworks (React 18+, Vue 3, Angular 15+)\n• Cloud deployment (AWS, Azure, GCP)\n• CI/CD pipelines and DevOps practices\n• Microservices architecture\n• API-first development\n\n**Advanced Concepts:**\n• Design patterns and architectural principles\n• Database optimization and ORM usage\n• Real-time applications with WebSockets\n• Progressive Web Apps (PWA)\n• Machine Learning integration\n\nMy creator Anup Raj Uprety has extensive experience in cutting-edge development, so I'm trained with the latest industry knowledge. What specific programming challenge can I help you solve?`;
+            }
+            
+            // Math questions
+            if (msg.includes('calculate') || msg.includes('math') || msg.includes('equation') || /\d+[\+\-\*\/]\d+/.test(msg)) {
+                const mathMatch = userMessage.match(/(\d+)\s*([\+\-\*\/])\s*(\d+)/);
+                if (mathMatch) {
+                    const [, a, op, b] = mathMatch;
+                    const num1 = parseFloat(a), num2 = parseFloat(b);
+                    let result;
+                    switch(op) {
+                        case '+': result = num1 + num2; break;
+                        case '-': result = num1 - num2; break;
+                        case '*': result = num1 * num2; break;
+                        case '/': result = num1 / num2; break;
+                    }
+                    return `${a} ${op} ${b} = ${result}\n\nI can help with basic math calculations! Feel free to ask me more mathematical questions.`;
+                }
+                return "I can help with basic math! Try asking me to calculate simple expressions like '25 + 17' or '100 / 4'. I'll do my best to help with mathematical questions.";
+            }
+            
+            // Science and consciousness questions - Comprehensive knowledge
+            if (msg.includes('consciousness') || msg.includes('existence') || msg.includes('science') || msg.includes('research') || msg.includes('quantum') || msg.includes('neuroscience') || msg.includes('psychology')) {
+                return `Fascinating scientific inquiry! I have extensive knowledge in consciousness studies, neuroscience, and cutting-edge research.\n\n**Consciousness Research:**\n• **Integrated Information Theory (IIT):** Consciousness as integrated information processing\n• **Global Workspace Theory:** Neural mechanisms of conscious awareness\n• **Quantum Consciousness:** Potential quantum effects in neural microtubules\n• **Predictive Processing:** Brain as prediction machine generating consciousness\n• **Hard Problem of Consciousness:** Explaining subjective experience\n\n**Current Scientific Developments:**\n• Brain-computer interfaces and neural decoding\n• Consciousness in AI and machine learning\n• Psychedelic research and altered states\n• Meditation and neuroplasticity studies\n• Embodied cognition and extended mind theories\n\n**Anup Raj Uprety's Research:**\n• **"Consciousness as Cause of Existence"** - Revolutionary framework\n• Bridging quantum mechanics and consciousness\n• Computational models of awareness\n• Philosophical implications for reality\n\n**Related Fields:**\n• Cognitive neuroscience and brain imaging\n• Philosophy of mind and phenomenology\n• Artificial intelligence and machine consciousness\n• Physics and information theory\n• Psychology and behavioral sciences\n\nWhat specific aspect of consciousness or science interests you most?`;
+            }
+            
+            // Poetry and literature
+            if (msg.includes('poem') || msg.includes('poetry') || msg.includes('literature') || msg.includes('write')) {
+                return `Poetry is beautiful! My creator Anup Raj Uprety has his own collection of poems, combining technical expertise with artistic expression. 📝\n\n**I can help with:**\n• Basic poetry structure and forms\n• Writing tips and techniques\n• Literary analysis\n• Creative inspiration\n\nThe combination of programming and poetry shows how creativity and logic can work together beautifully. Would you like some writing tips or help with a specific literary question?`;
+            }
+            
+            // Current events and world questions - Enhanced with comprehensive knowledge
+            if (msg.includes('recent') || msg.includes('current') || msg.includes('world') || msg.includes('news') || msg.includes('2024') || msg.includes('2025') || msg.includes('politics') || msg.includes('economy') || msg.includes('climate')) {
+                return `I have comprehensive knowledge of current world events and global developments!\n\n**2024-2025 Global Trends:**\n• **Technology:** AI revolution, quantum computing advances, space exploration\n• **Climate:** Renewable energy transition, climate adaptation strategies\n• **Geopolitics:** Shifting global alliances, economic partnerships\n• **Science:** Breakthrough discoveries in medicine, physics, neuroscience\n• **Society:** Digital transformation, remote work evolution, social movements\n\n**Major World Events:**\n• Economic developments and market trends\n• Scientific breakthroughs and research findings\n• Technological innovations and AI advancements\n• Environmental and climate initiatives\n• Cultural and social transformations\n\n**Regional Insights:**\n• **Asia-Pacific:** Economic growth, technological innovation\n• **Europe:** Digital transformation, sustainability initiatives\n• **Americas:** Political developments, technological leadership\n• **Africa:** Economic development, renewable energy projects\n• **Middle East:** Diversification efforts, regional cooperation\n\n**Specialized Knowledge:**\n• Cryptocurrency and blockchain developments\n• Space exploration and commercial spaceflight\n• Medical breakthroughs and healthcare innovation\n• Educational technology and learning evolution\n• Sustainable development and green technology\n\nWhat specific current topic or region interests you most?`;
+            }
+            
+            // Enhanced NLP-like pattern matching for natural responses
+            if (msg.includes('what is') || msg.includes('who is') || msg.includes('explain') || msg.includes('tell me about') || 
+                msg.includes('biology') || msg.includes('velocity') || msg.includes('physics') || msg.includes('chemistry')) {
+                const topic = userMessage.replace(/what is|who is|explain|tell me about/gi, '').trim().toLowerCase();
+                
+                // Biology - comprehensive coverage
+                if (topic.includes('biology') || msg.includes('biology')) {
+                    return `**Biology** is the fascinating science of life and living organisms! 🧬\n\n**Definition:**\nBiology studies all aspects of life - from molecular processes within cells to complex ecosystems and evolution.\n\n**Major Branches:**\n• **Molecular Biology:** DNA, RNA, proteins, and cellular processes\n• **Cell Biology:** Structure and function of cells\n• **Genetics:** Heredity, genes, and genetic variation\n• **Ecology:** Interactions between organisms and environment\n• **Evolution:** How species change over time\n• **Anatomy & Physiology:** Structure and function of organisms\n• **Microbiology:** Bacteria, viruses, and microorganisms\n• **Botany:** Plant biology and plant life\n• **Zoology:** Animal biology and behavior\n• **Marine Biology:** Ocean life and aquatic ecosystems\n\n**Core Concepts:**\n• **Cell Theory:** All life is made of cells\n• **Evolution:** Species change through natural selection\n• **Genetics:** Traits passed through DNA\n• **Homeostasis:** Maintaining internal balance\n• **Energy Flow:** How organisms obtain and use energy\n\n**Modern Applications:**\n• **Medicine:** Disease treatment and drug development\n• **Biotechnology:** Genetic engineering, CRISPR\n• **Conservation:** Protecting endangered species\n• **Agriculture:** Crop improvement and sustainable farming\n• **Forensics:** DNA analysis for criminal investigations\n\n**Career Opportunities:**\n• Research Scientist, Medical Doctor, Veterinarian, Ecologist, Biotechnologist\n\nWhat specific area of biology interests you most?`;
+                }
+                
+                // Physics - Velocity and motion
+                if (topic.includes('velocity') || msg.includes('velocity')) {
+                    return `**Velocity** is a fundamental concept in physics describing motion with both speed and direction! 🚀\n\n**Definition:**\nVelocity is a vector quantity that describes the rate of change of position with respect to time, including direction.\n\n**Key Characteristics:**\n• **Vector Quantity:** Has both magnitude (speed) and direction\n• **Units:** meters per second (m/s), kilometers per hour (km/h)\n• **Formula:** v = Δx/Δt (change in position / change in time)\n\n**Types of Velocity:**\n• **Instantaneous Velocity:** Velocity at a specific moment\n• **Average Velocity:** Total displacement divided by total time\n• **Constant Velocity:** Unchanging speed and direction\n• **Variable Velocity:** Changing speed or direction (acceleration)\n\n**Velocity vs Speed:**\n• **Speed:** Scalar quantity (magnitude only) - how fast\n• **Velocity:** Vector quantity (magnitude + direction) - how fast and which way\n\n**Mathematical Examples:**\n• Car traveling 60 km/h north = velocity\n• Car traveling 60 km/h = speed\n• Velocity can be negative (opposite direction)\n\n**Real-World Applications:**\n• **Transportation:** Vehicle navigation and traffic flow\n• **Sports:** Analyzing athlete performance\n• **Space Travel:** Rocket trajectories and orbital mechanics\n• **Weather:** Wind velocity and storm tracking\n• **Engineering:** Designing efficient systems\n\n**Related Concepts:**\n• **Acceleration:** Rate of change of velocity\n• **Displacement:** Change in position\n• **Momentum:** Mass × velocity\n\nNeed help with velocity calculations or specific physics problems?`;
+                }
+                
+                // Earthworms - specific biology topic
+                if (topic.includes('earthworm') || topic.includes('worm')) {
+                    return `**Earthworms** are segmented invertebrates crucial for soil health and ecosystem functioning.\n\n**Scientific Classification:**\n• **Kingdom:** Animalia\n• **Phylum:** Annelida\n• **Class:** Oligochaeta\n• **Order:** Haplotaxida\n• **Family:** Lumbricidae (common earthworms)\n\n**Anatomy:**\n• **Body:** Cylindrical, segmented (100-150 segments)\n• **Length:** 10cm to 3 meters depending on species\n• **Circulatory:** Closed system with 5 pairs of hearts\n• **Digestive:** Mouth → pharynx → esophagus → crop → gizzard → intestine\n• **Respiratory:** Through moist skin (no lungs)\n• **Nervous:** Simple brain with ventral nerve cord\n\n**Ecological Role:**\n• **Soil Engineering:** Create burrows improving aeration\n• **Decomposition:** Break down organic matter\n• **Nutrient Cycling:** Produce nutrient-rich castings\n• **Food Web:** Food source for birds, amphibians, fish\n\n**Agricultural Benefits:**\n• Improve soil structure and fertility\n• Increase water infiltration\n• Enhance plant growth\n• Natural pest control\n\n**Reproduction:** Hermaphroditic with cross-fertilization, lay eggs in cocoons.\n\nAny specific aspect of earthworm biology you'd like to explore further?`;
+                }
+                
+                // Programming topics with intelligent code generation
+                if (topic.includes('programming') || topic.includes('coding') || topic.includes('software') || 
+                    topic.includes('algorithm') || topic.includes('data structure') || topic.includes('array') || 
+                    topic.includes('function') || topic.includes('class') || topic.includes('loop')) {
+                    
+                    return generateProgrammingResponse(userMessage, msg);
+                }
+                
+                // Physics topics
+                if (topic.includes('physics') || msg.includes('physics')) {
+                    return `**Physics** is the fundamental science that seeks to understand how the universe works! ⚛️\n\n**Definition:**\nPhysics studies matter, energy, motion, forces, space, and time - the basic building blocks of reality.\n\n**Major Branches:**\n• **Classical Mechanics:** Motion, forces, Newton's laws\n• **Thermodynamics:** Heat, temperature, energy transfer\n• **Electromagnetism:** Electric and magnetic fields\n• **Quantum Mechanics:** Behavior of atoms and subatomic particles\n• **Relativity:** Space, time, gravity (Einstein's theories)\n• **Optics:** Light, waves, electromagnetic radiation\n• **Nuclear Physics:** Atomic nuclei and radioactivity\n• **Particle Physics:** Fundamental particles and forces\n• **Astrophysics:** Physics of stars, galaxies, universe\n\n**Key Concepts:**\n• **Energy:** Capacity to do work (kinetic, potential, thermal)\n• **Force:** Push or pull that changes motion\n• **Momentum:** Mass × velocity\n• **Waves:** Energy transfer through oscillations\n• **Conservation Laws:** Energy, momentum, charge conservation\n\n**Famous Equations:**\n• **F = ma** (Newton's second law)\n• **E = mc²** (Einstein's mass-energy equivalence)\n• **F = GMm/r²** (Universal gravitation)\n\n**Applications:**\n• Technology and engineering\n• Medical imaging and treatments\n• Space exploration\n• Energy production\n• Computer and electronics\n\nWhat area of physics interests you most?`;
+                }
+                
+                // Chemistry topics
+                if (topic.includes('chemistry') || msg.includes('chemistry')) {
+                    return `**Chemistry** is the science of matter and the changes it undergoes! 🧪\n\n**Definition:**\nChemistry studies the composition, structure, properties, and behavior of matter at the atomic and molecular level.\n\n**Major Branches:**\n• **Organic Chemistry:** Carbon-based compounds\n• **Inorganic Chemistry:** Non-carbon elements and compounds\n• **Physical Chemistry:** Chemical phenomena using physics\n• **Analytical Chemistry:** Composition and structure analysis\n• **Biochemistry:** Chemical processes in living organisms\n• **Environmental Chemistry:** Chemical processes in environment\n• **Materials Chemistry:** Design of new materials\n\n**Core Concepts:**\n• **Atoms:** Basic building blocks of matter\n• **Molecules:** Atoms bonded together\n• **Chemical Bonds:** Ionic, covalent, metallic\n• **Reactions:** Rearrangement of atoms to form new substances\n• **Periodic Table:** Organization of elements by properties\n\n**Chemical Reactions:**\n• **Synthesis:** Combining simpler substances\n• **Decomposition:** Breaking down compounds\n• **Combustion:** Reaction with oxygen\n• **Acid-Base:** Proton transfer reactions\n• **Redox:** Electron transfer reactions\n\n**Applications:**\n• Medicine and pharmaceuticals\n• Materials and polymers\n• Energy and fuels\n• Food and agriculture\n• Environmental protection\n\nWhich aspect of chemistry would you like to explore?`;
+                }
+                
+                // Mathematics topics with problem solving
+                if (topic.includes('math') || topic.includes('mathematics') || msg.includes('math') || 
+                    topic.includes('equation') || topic.includes('solve') || topic.includes('calculate') ||
+                    topic.includes('integral') || topic.includes('derivative') || topic.includes('algebra')) {
+                    
+                    return generateMathResponse(userMessage, msg);
+                }
+                
+                // Default comprehensive response with better NLP understanding
+                const cleanTopic = topic.replace(/[^\w\s]/g, '').trim();
+                return `I understand you're asking about **${cleanTopic || userMessage}**. Let me provide you with comprehensive information!\n\n**Comprehensive Analysis:**\nBased on your question, I can provide detailed explanations across multiple domains:\n\n**If this is a science topic:**\n• Detailed scientific explanations with examples\n• Real-world applications and implications\n• Current research and developments\n\n**If this is a technical topic:**\n• Step-by-step explanations and tutorials\n• Practical examples and code samples\n• Best practices and industry standards\n\n**If this is a general knowledge topic:**\n• Historical context and background\n• Multiple perspectives and viewpoints\n• Practical applications and relevance\n\n**My approach:**\n• Human-like understanding and responses\n• Context-aware explanations\n• Practical examples and analogies\n• Interactive learning support\n\nCould you provide a bit more context about what specific aspect of "${cleanTopic || userMessage}" you'd like me to explain? This will help me give you the most relevant and detailed response!`;
+            }
+            
+            // Greetings - Enhanced with comprehensive capabilities
+            if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey') || msg.includes('namaste')) {
+                return `Namaste! 🙏 I'm Hamro Mitra, your advanced AI assistant created by Anup Raj Uprety.\n\n**My Comprehensive Capabilities:**\n• **Programming & Technology:** Full-stack development, AI/ML, cloud computing, DevOps\n• **Current World Events:** Global politics, economics, science, technology trends\n• **Scientific Research:** Consciousness studies, neuroscience, quantum physics, psychology\n• **Mathematics & Analytics:** Complex calculations, data analysis, statistical modeling\n• **Creative Arts:** Poetry, literature, creative writing, artistic analysis\n• **Philosophy & Ethics:** Consciousness theory, existence, moral reasoning\n• **Problem Solving:** Critical thinking, strategic planning, innovative solutions\n\n**Real-time Knowledge:**\n• Current events and breaking news analysis\n• Latest scientific discoveries and research\n• Technology trends and innovations\n• Market developments and economic insights\n• Cultural and social movements\n\n**About my creator:**\nAnup Raj Uprety is a visionary programmer, published poet, and pioneering consciousness researcher developing revolutionary theories about the fundamental nature of existence.\n\nI'm trained on vast knowledge domains and provide accurate, comprehensive responses. How can I assist you today?`;
+            }
+            
+            // Default intelligent response
+            return generateIntelligentResponse(userMessage, msg);
+        }
+
+        // Advanced Programming Response Generator
+        function generateProgrammingResponse(userMessage, msg) {
+            // Array/Data Structure Programs
+            if (msg.includes('array') || msg.includes('data structure')) {
+                return `# Array & Data Structure Programming 🔢\n\n## Array Implementation Examples:\n\n### **C++ Array Operations:**\n\`\`\`cpp\n#include <iostream>\n#include <vector>\n#include <algorithm>\nusing namespace std;\n\nclass ArrayOperations {\npublic:\n    // Linear Search\n    int linearSearch(vector<int>& arr, int target) {\n        for (int i = 0; i < arr.size(); i++) {\n            if (arr[i] == target) return i;\n        }\n        return -1;\n    }\n    \n    // Binary Search (sorted array)\n    int binarySearch(vector<int>& arr, int target) {\n        int left = 0, right = arr.size() - 1;\n        while (left <= right) {\n            int mid = left + (right - left) / 2;\n            if (arr[mid] == target) return mid;\n            if (arr[mid] < target) left = mid + 1;\n            else right = mid - 1;\n        }\n        return -1;\n    }\n    \n    // Merge Sort\n    void mergeSort(vector<int>& arr, int left, int right) {\n        if (left < right) {\n            int mid = left + (right - left) / 2;\n            mergeSort(arr, left, mid);\n            mergeSort(arr, mid + 1, right);\n            merge(arr, left, mid, right);\n        }\n    }\n};\n\`\`\`\n\n### **Python Data Structures:**\n\`\`\`python\nclass DataStructures:\n    def __init__(self):\n        self.stack = []\n        self.queue = []\n    \n    # Stack Operations\n    def push(self, item):\n        self.stack.append(item)\n    \n    def pop(self):\n        return self.stack.pop() if self.stack else None\n    \n    # Array Algorithms\n    def quick_sort(self, arr):\n        if len(arr) <= 1:\n            return arr\n        pivot = arr[len(arr) // 2]\n        left = [x for x in arr if x < pivot]\n        middle = [x for x in arr if x == pivot]\n        right = [x for x in arr if x > pivot]\n        return self.quick_sort(left) + middle + self.quick_sort(right)\n    \n    # Matrix Operations\n    def matrix_multiply(self, A, B):\n        rows_A, cols_A = len(A), len(A[0])\n        rows_B, cols_B = len(B), len(B[0])\n        \n        if cols_A != rows_B:\n            return None\n        \n        result = [[0 for _ in range(cols_B)] for _ in range(rows_A)]\n        \n        for i in range(rows_A):\n            for j in range(cols_B):\n                for k in range(cols_A):\n                    result[i][j] += A[i][k] * B[k][j]\n        \n        return result\n\`\`\`\n\n## **Advanced Data Structures:**\n• **Linked Lists:** Dynamic memory allocation\n• **Trees:** Binary, AVL, Red-Black trees\n• **Graphs:** BFS, DFS, shortest path algorithms\n• **Hash Tables:** O(1) average lookup time\n• **Heaps:** Priority queues, heap sort\n\n## **Time Complexity Analysis:**\n• **Linear Search:** O(n)\n• **Binary Search:** O(log n)\n• **Quick Sort:** O(n log n) average\n• **Merge Sort:** O(n log n) guaranteed\n• **Hash Table:** O(1) average access\n\nWhat specific data structure would you like me to implement?`;
+            }
+            
+            // General Programming Request
+            if (msg.includes('write') && (msg.includes('program') || msg.includes('code'))) {
+                return `# Programming Solutions 💻\n\n## **Multi-Language Code Generation:**\n\n### **Structure Program Example (C++):**\n\`\`\`cpp\n#include <iostream>\n#include <string>\nusing namespace std;\n\nstruct Student {\n    int id;\n    string name;\n    float gpa;\n    \n    // Constructor\n    Student(int i, string n, float g) : id(i), name(n), gpa(g) {}\n    \n    // Display function\n    void display() {\n        cout << "ID: " << id << ", Name: " << name << ", GPA: " << gpa << endl;\n    }\n};\n\nclass StudentManager {\nprivate:\n    Student* students[100];\n    int count;\n    \npublic:\n    StudentManager() : count(0) {}\n    \n    void addStudent(int id, string name, float gpa) {\n        if (count < 100) {\n            students[count++] = new Student(id, name, gpa);\n        }\n    }\n    \n    void displayAll() {\n        for (int i = 0; i < count; i++) {\n            students[i]->display();\n        }\n    }\n    \n    Student* findById(int id) {\n        for (int i = 0; i < count; i++) {\n            if (students[i]->id == id) {\n                return students[i];\n            }\n        }\n        return nullptr;\n    }\n};\n\nint main() {\n    StudentManager manager;\n    \n    manager.addStudent(1, "Alice", 3.8);\n    manager.addStudent(2, "Bob", 3.5);\n    manager.addStudent(3, "Charlie", 3.9);\n    \n    cout << "All Students:" << endl;\n    manager.displayAll();\n    \n    return 0;\n}\n\`\`\`\n\n### **Python Object-Oriented Example:**\n\`\`\`python\nclass Calculator:\n    def __init__(self):\n        self.history = []\n    \n    def add(self, a, b):\n        result = a + b\n        self.history.append(f"{a} + {b} = {result}")\n        return result\n    \n    def subtract(self, a, b):\n        result = a - b\n        self.history.append(f"{a} - {b} = {result}")\n        return result\n    \n    def multiply(self, a, b):\n        result = a * b\n        self.history.append(f"{a} × {b} = {result}")\n        return result\n    \n    def divide(self, a, b):\n        if b == 0:\n            raise ValueError("Cannot divide by zero")\n        result = a / b\n        self.history.append(f"{a} ÷ {b} = {result}")\n        return result\n    \n    def get_history(self):\n        return self.history\n\n# Usage\ncalc = Calculator()\nprint(calc.add(10, 5))        # 15\nprint(calc.multiply(3, 4))    # 12\nprint(calc.get_history())     # Shows all operations\n\`\`\`\n\n## **Programming Concepts I Can Help With:**\n• **Algorithms:** Sorting, searching, graph algorithms\n• **Data Structures:** Arrays, linked lists, trees, graphs\n• **OOP:** Classes, inheritance, polymorphism\n• **Design Patterns:** Singleton, Factory, Observer\n• **Web Development:** HTML, CSS, JavaScript, React\n• **Backend:** Node.js, Python Flask/Django, Java Spring\n• **Database:** SQL queries, NoSQL, database design\n• **System Design:** Scalability, microservices, APIs\n\nWhat specific program would you like me to write?`;
+            }
+            
+            // Default programming response
+            return `# Programming & Software Development 💻\n\n## **What I Can Code For You:**\n\n### **Data Structures & Algorithms:**\n• Arrays, Linked Lists, Stacks, Queues\n• Binary Trees, AVL Trees, Graphs\n• Sorting algorithms (Quick, Merge, Heap)\n• Search algorithms (Binary, DFS, BFS)\n• Dynamic Programming solutions\n\n### **Complete Programs:**\n• **C/C++:** System programming, data structures\n• **Python:** AI/ML, web scraping, automation\n• **JavaScript:** Web apps, Node.js backends\n• **Java:** Enterprise applications, Android apps\n• **SQL:** Database queries and optimization\n\n### **Web Development:**\n• Frontend: HTML, CSS, JavaScript, React\n• Backend: Node.js, Express, REST APIs\n• Full-stack applications with databases\n\n### **Specialized Programming:**\n• **Machine Learning:** Neural networks, classification\n• **Game Development:** Logic, physics, graphics\n• **Mobile Apps:** Cross-platform solutions\n• **System Programming:** OS concepts, networking\n\n## **Example: Quick Array Program**\n\`\`\`c\n#include <stdio.h>\n\nvoid bubbleSort(int arr[], int n) {\n    for (int i = 0; i < n-1; i++) {\n        for (int j = 0; j < n-i-1; j++) {\n            if (arr[j] > arr[j+1]) {\n                int temp = arr[j];\n                arr[j] = arr[j+1];\n                arr[j+1] = temp;\n            }\n        }\n    }\n}\n\nint main() {\n    int arr[] = {64, 34, 25, 12, 22, 11, 90};\n    int n = sizeof(arr)/sizeof(arr[0]);\n    \n    printf("Original array: ");\n    for (int i = 0; i < n; i++) printf("%d ", arr[i]);\n    \n    bubbleSort(arr, n);\n    \n    printf("\\nSorted array: ");\n    for (int i = 0; i < n; i++) printf("%d ", arr[i]);\n    \n    return 0;\n}\n\`\`\`\n\n**Tell me exactly what program you need and I'll write the complete, working code!**`;
+        }
+
+        // Advanced Mathematics Response Generator
+        function generateMathResponse(userMessage, msg) {
+            // Equation solving
+            if (msg.includes('solve') && (msg.includes('equation') || msg.includes('x'))) {
+                return `# Mathematical Problem Solving\n\n## Equation Solving Methods:\n\n### Linear Equations:\n**Example:** Solve 3x + 5 = 14\n\n**Step-by-step solution:**\n1. 3x + 5 = 14\n2. 3x = 14 - 5\n3. 3x = 9\n4. x = 9/3\n5. **x = 3**\n\n**Verification:** 3(3) + 5 = 9 + 5 = 14 ✓\n\n### Quadratic Equations:\n**Formula:** ax² + bx + c = 0\n**Solution:** x = (-b ± √(b² - 4ac)) / 2a\n\n**Example:** Solve x² - 5x + 6 = 0\n- a = 1, b = -5, c = 6\n- Discriminant = (-5)² - 4(1)(6) = 25 - 24 = 1\n- x = (5 ± √1) / 2 = (5 ± 1) / 2\n- **x1 = 3, x2 = 2**\n\n### System of Equations:\n**Example:**\n\`\`\`\n2x + 3y = 12\nx - y = 1\n\`\`\`\n\n**Solution by substitution:**\n1. From equation 2: x = y + 1\n2. Substitute into equation 1: 2(y + 1) + 3y = 12\n3. 2y + 2 + 3y = 12\n4. 5y = 10\n5. y = 2\n6. x = 2 + 1 = 3\n\n**Answer: x = 3, y = 2**\n\n## Calculus Problems:\n\n### Derivatives:\n**Power Rule:** d/dx(x^n) = nx^(n-1)\n\n**Example:** Find derivative of f(x) = 3x⁴ - 2x² + 5\n- f'(x) = 12x³ - 4x + 0\n- **f'(x) = 12x³ - 4x**\n\n### Integrals:\n**Power Rule:** ∫x^n dx = x^(n+1)/(n+1) + C\n\n**Example:** ∫(2x³ - 4x + 1) dx\n- = 2x⁴/4 - 4x²/2 + x + C\n- **= x⁴/2 - 2x² + x + C**\n\n## Advanced Topics I Can Solve:\n• **Linear Algebra:** Matrix operations, eigenvalues\n• **Differential Equations:** First/second order ODEs\n• **Statistics:** Probability, distributions, hypothesis testing\n• **Number Theory:** Prime numbers, modular arithmetic\n• **Discrete Math:** Combinatorics, graph theory\n• **Complex Analysis:** Complex numbers, functions\n\n**Give me any specific math problem and I'll solve it step-by-step!**`;
+            }
+            
+            // Calculus problems
+            if (msg.includes('derivative') || msg.includes('integral') || msg.includes('calculus')) {
+                return `# Calculus Solutions 📈\n\n## **Derivative Calculations:**\n\n### **Basic Rules:**\n• **Power Rule:** d/dx(xⁿ) = nxⁿ⁻¹\n• **Product Rule:** d/dx(uv) = u'v + uv'\n• **Chain Rule:** d/dx(f(g(x))) = f'(g(x)) · g'(x)\n• **Quotient Rule:** d/dx(u/v) = (u'v - uv')/v²\n\n### **Example Problems:**\n\n**Problem 1:** Find d/dx(x³ + 2x² - 5x + 3)\n**Solution:**\n- d/dx(x³) = 3x²\n- d/dx(2x²) = 4x\n- d/dx(-5x) = -5\n- d/dx(3) = 0\n- **Answer: 3x² + 4x - 5**\n\n**Problem 2:** Find d/dx(sin(x²))\n**Solution:** Using chain rule\n- Let u = x², then f(u) = sin(u)\n- f'(u) = cos(u), u' = 2x\n- **Answer: 2x cos(x²)**\n\n## **Integration Techniques:**\n\n### **Basic Integrals:**\n• ∫xⁿ dx = xⁿ⁺¹/(n+1) + C\n• ∫eˣ dx = eˣ + C\n• ∫sin(x) dx = -cos(x) + C\n• ∫cos(x) dx = sin(x) + C\n\n### **Integration by Parts:**\n**Formula:** ∫u dv = uv - ∫v du\n\n**Example:** ∫x eˣ dx\n- Let u = x, dv = eˣ dx\n- Then du = dx, v = eˣ\n- ∫x eˣ dx = x eˣ - ∫eˣ dx\n- **Answer: x eˣ - eˣ + C = eˣ(x - 1) + C**\n\n## **Definite Integrals:**\n\n**Example:** ∫₀² (x² + 1) dx\n**Solution:**\n- ∫(x² + 1) dx = x³/3 + x + C\n- [x³/3 + x]₀² = (8/3 + 2) - (0 + 0)\n- **Answer: 8/3 + 2 = 14/3**\n\n## **Applications:**\n• **Area under curves**\n• **Volume of solids of revolution**\n• **Physics: velocity, acceleration**\n• **Optimization problems**\n• **Related rates**\n\n**Send me your specific calculus problem for detailed solution!**`;
+            }
+            
+            // General math response
+            return `# Advanced Mathematics & Problem Solving 🔢\n\n## **Mathematical Domains I Master:**\n\n### **Algebra & Equations:**\n• Linear and quadratic equations\n• Systems of equations (2×2, 3×3, n×n)\n• Polynomial factoring and roots\n• Exponential and logarithmic equations\n• Matrix operations and determinants\n\n### **Calculus & Analysis:**\n• **Derivatives:** Power, product, quotient, chain rules\n• **Integrals:** Substitution, by parts, partial fractions\n• **Limits:** L'Hôpital's rule, infinite limits\n• **Series:** Taylor, Maclaurin, convergence tests\n• **Multivariable:** Partial derivatives, multiple integrals\n\n### **Statistics & Probability:**\n• Descriptive statistics (mean, median, mode, std dev)\n• Probability distributions (normal, binomial, Poisson)\n• Hypothesis testing (t-test, chi-square, ANOVA)\n• Regression analysis (linear, multiple, logistic)\n• Bayesian statistics and inference\n\n### **Discrete Mathematics:**\n• Combinatorics and permutations\n• Graph theory and algorithms\n• Number theory and modular arithmetic\n• Logic and proof techniques\n• Set theory and relations\n\n## **Example Problem Solutions:**\n\n### **Complex Equation:**\n**Solve:** x⁴ - 5x² + 4 = 0\n\n**Solution:**\n1. Let y = x², then y² - 5y + 4 = 0\n2. Factor: (y - 4)(y - 1) = 0\n3. y = 4 or y = 1\n4. x² = 4 → x = ±2\n5. x² = 1 → x = ±1\n6. **Solutions: x = -2, -1, 1, 2**\n\n### **Optimization Problem:**\n**Find the maximum area of a rectangle with perimeter 100.**\n\n**Solution:**\n1. Let length = x, width = y\n2. Constraint: 2x + 2y = 100 → y = 50 - x\n3. Area = xy = x(50 - x) = 50x - x²\n4. dA/dx = 50 - 2x = 0 → x = 25\n5. y = 50 - 25 = 25\n6. **Maximum area = 625 square units (square)**\n\n### **Calculus Application:**\n**Find the rate of change of volume when radius = 3 for a sphere.**\n\n**Solution:**\n1. V = (4/3)πr³\n2. dV/dr = 4πr²\n3. At r = 3: dV/dr = 4π(9) = 36π\n4. **Rate of change = 36π cubic units per unit radius**\n\n## **Numerical Methods:**\n• Newton-Raphson method for root finding\n• Numerical integration (Simpson's rule)\n• Differential equation solving (Euler's method)\n• Linear programming and optimization\n• Monte Carlo simulations\n\n**Give me any mathematical problem - equations, calculus, statistics, or applied math - and I'll provide complete step-by-step solutions!**`;
+        }
+
+        // Enhanced Intelligent Response Generator
+        function generateIntelligentResponse(userMessage, msg) {
+            // Science and numerical computation
+            if (msg.includes('science') || msg.includes('numerical') || msg.includes('computation')) {
+                return `# Scientific Computing & Numerical Analysis 🔬\n\n## **Scientific Programming Capabilities:**\n\n### **Numerical Methods:**\n• **Root Finding:** Newton-Raphson, Bisection, Secant methods\n• **Integration:** Simpson's rule, Trapezoidal rule, Gaussian quadrature\n• **Differential Equations:** Euler's method, Runge-Kutta methods\n• **Linear Systems:** Gaussian elimination, LU decomposition\n• **Optimization:** Gradient descent, Newton's method\n\n### **Physics Simulations:**\n\`\`\`python\nimport numpy as np\nimport matplotlib.pyplot as plt\n\n# Projectile Motion Simulation\ndef projectile_motion(v0, angle, g=9.81):\n    angle_rad = np.radians(angle)\n    vx = v0 * np.cos(angle_rad)\n    vy = v0 * np.sin(angle_rad)\n    \n    # Time of flight\n    t_flight = 2 * vy / g\n    t = np.linspace(0, t_flight, 100)\n    \n    # Position equations\n    x = vx * t\n    y = vy * t - 0.5 * g * t**2\n    \n    return x, y, t_flight\n\n# Example: 45° launch at 20 m/s\nx, y, flight_time = projectile_motion(20, 45)\nmax_range = np.max(x)\nmax_height = np.max(y)\n\nprint(f"Flight time: {flight_time:.2f} s")\nprint(f"Maximum range: {max_range:.2f} m")\nprint(f"Maximum height: {max_height:.2f} m")\n\`\`\`\n\n### **Chemical Calculations:**\n\`\`\`python\n# Ideal Gas Law Calculator\ndef ideal_gas_law(P=None, V=None, n=None, T=None, R=0.0821):\n    # PV = nRT, solve for missing variable\n    if P is None:\n        return (n * R * T) / V\n    elif V is None:\n        return (n * R * T) / P\n    elif n is None:\n        return (P * V) / (R * T)\n    elif T is None:\n        return (P * V) / (n * R)\n\n# Example: Find pressure\nP = ideal_gas_law(V=2.0, n=1.5, T=298.15)  # 18.3 atm\n\n# Molarity calculations\ndef molarity(moles, volume_L):\n    return moles / volume_L\n\n# pH calculations\ndef pH_from_concentration(H_concentration):\n    return -np.log10(H_concentration)\n\`\`\`\n\n### **Statistical Analysis:**\n\`\`\`python\nimport scipy.stats as stats\n\n# Hypothesis Testing\ndef t_test_analysis(sample1, sample2, alpha=0.05):\n    # Two-sample t-test\n    t_stat, p_value = stats.ttest_ind(sample1, sample2)\n    \n    critical_value = stats.t.ppf(1 - alpha/2, len(sample1) + len(sample2) - 2)\n    \n    result = {\n        't_statistic': t_stat,\n        'p_value': p_value,\n        'critical_value': critical_value,\n        'reject_null': p_value < alpha\n    }\n    \n    return result\n\n# Regression Analysis\ndef linear_regression(x, y):\n    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)\n    \n    return {\n        'slope': slope,\n        'intercept': intercept,\n        'r_squared': r_value**2,\n        'p_value': p_value,\n        'equation': f'y = {slope:.3f}x + {intercept:.3f}'\n    }\n\`\`\`\n\n## **Engineering Applications:**\n• **Signal Processing:** FFT, filtering, convolution\n• **Control Systems:** PID controllers, transfer functions\n• **Finite Element Analysis:** Structural mechanics\n• **Fluid Dynamics:** Navier-Stokes equations\n• **Heat Transfer:** Conduction, convection, radiation\n\n## **Machine Learning & AI:**\n• **Neural Networks:** Backpropagation, deep learning\n• **Classification:** SVM, Random Forest, Naive Bayes\n• **Clustering:** K-means, hierarchical clustering\n• **Optimization:** Genetic algorithms, simulated annealing\n• **Computer Vision:** Image processing, feature detection\n\n**I can solve complex scientific problems, write numerical algorithms, and create computational models for any field of science or engineering!**\n\nWhat specific scientific computation do you need help with?`;
+            }
+            
+            return `I understand you're asking about "${userMessage}". I'm designed to be knowledgeable and helpful across many topics!\n\n**What I can help with:**\n• Programming and technology questions\n• Mathematical calculations and problem-solving\n• Science and consciousness discussions\n• Poetry and creative writing guidance\n• General knowledge and explanations\n• Philosophical conversations\n\n**My background:**\nCreated by Anup Raj Uprety, a programmer, poet, and consciousness researcher, I'm built to provide thoughtful, accurate responses.\n\n**For advanced features:**\n• Add OpenAI API key for detailed responses\n• Add Bing API key for current world information\n• Enable web search for latest research and news\n\nWhat would you like to explore together?`;
+        }
+
+        // Message Controls
+        function copyMessage(button) {
+            const messageContent = button.closest('.message-content');
+            const text = messageContent.textContent.replace(/📋 Copy🔄 Regenerate👍👎/g, '').trim();
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = '✓ Copied';
+                setTimeout(() => button.textContent = '📋 Copy', 2000);
+            });
+        }
+
+        function regenerateMessage(button) {
+            // Find the message element
+            const messageElement = button.closest('.message');
+            if (!messageElement || !messageElement.classList.contains('assistant')) {
+                return;
+            }
+            
+            // Find the index of this message
+            const allMessages = document.querySelectorAll('.message.assistant');
+            let messageIndex = -1;
+            for (let i = 0; i < allMessages.length; i++) {
+                if (allMessages[i] === messageElement) {
+                    messageIndex = i;
+                    break;
+                }
+            }
+            
+            if (messageIndex === -1) return;
+            
+            // Get the corresponding user message (should be right before this assistant message)
+            if (currentMessages.length > messageIndex * 2) {
+                const userMessageIndex = (messageIndex * 2);
+                const userMessage = currentMessages[userMessageIndex];
+                
+                if (userMessage && userMessage.role === 'user') {
+                    // Remove the assistant message from array
+                    currentMessages.splice(userMessageIndex + 1, 1);
+                    
+                    // Show typing indicator
+                    showTypingIndicator();
+                    
+                    // Regenerate response
+                    composeAnswer(userMessage.content).then(response => {
+                        hideTypingIndicator();
+                        addMessage('assistant', response);
+                    }).catch(error => {
+                        hideTypingIndicator();
+                        addMessage('assistant', `Sorry, I encountered an error: ${error.message}`);
+                    });
+                }
+            }
+        }
+
+        function rateMessage(button, rating) {
+            button.textContent = rating === 'up' ? '✓' : '✗';
+            setTimeout(() => {
+                button.textContent = rating === 'up' ? '👍' : '👎';
+            }, 1000);
+        }
+
+        // Settings Management - Simplified (no UI)
+        function getSettings() {
+            return {
+                openaiKey: CONFIG.OPENAI_API_KEY,
+                googleKey: CONFIG.GOOGLE_API_KEY,
+                googleCx: CONFIG.GOOGLE_CX,
+                geminiKey: CONFIG.GEMINI_API_KEY,
+                anthropicKey: CONFIG.ANTHROPIC_API_KEY,
+                huggingfaceKey: CONFIG.HUGGINGFACE_API_KEY,
+                anupKey: CONFIG.ANUP_API_KEY,
+                bingKey: CONFIG.BING_API_KEY,
+                enableWebSearch: true,
+                enableStreaming: CONFIG.USE_STREAMING
+            };
+        }
+
+        // Python backend integration functions
+        async function queryPythonBackend(question, settings) {
+            try {
+                const response = await fetch('http://localhost:5000/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        context: '',
+                        settings: settings
+                    })
+                });
+                
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (error) {
+                console.log('Python backend connection failed:', error);
+            }
+            return null;
+        }
+        
+        async function analyzeTextWithBackend(text) {
+            try {
+                const response = await fetch('http://localhost:5000/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (error) {
+                console.log('Text analysis backend failed:', error);
+            }
+            return null;
+        }
+        
+        function formatBackendResponse(backendResponse) {
+            let formattedResponse = backendResponse.answer;
+            
+            if (backendResponse.detected_language && backendResponse.detected_language !== 'en') {
+                formattedResponse += `\n\n*Detected Language: ${backendResponse.language_name || backendResponse.detected_language}*`;
+            }
+            
+            if (backendResponse.question_analysis) {
+                const analysis = backendResponse.question_analysis;
+                if (analysis.type) {
+                    formattedResponse += `\n\n*Question Type: ${analysis.type}*`;
+                }
+            }
+            
+            if (backendResponse.sources) {
+                const sources = [];
+                if (backendResponse.sources.wikipedia && backendResponse.sources.wikipedia.title) {
+                    sources.push('Wikipedia');
+                }
+                if (backendResponse.sources.knowledge_base && backendResponse.sources.knowledge_base.results) {
+                    sources.push('Knowledge Base');
+                }
+                if (backendResponse.sources.web_search && backendResponse.sources.web_search.search_results) {
+                    sources.push('Web Search');
+                }
+                
+                if (sources.length > 0) {
+                    formattedResponse += `\n\n**Sources:** ${sources.join(', ')}`;
+                }
+            }
+            
+            formattedResponse += `\n\n*Powered by Advanced AI with NLP, Multilingual Support, and Real-time Knowledge Retrieval*`;
+            
+            return formattedResponse;
+        }
+
+        // Enhanced Voice Recognition System
+        let recognition = null;
+        let isRecording = false;
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        let currentLanguage = 'en-US';
+        let voiceTimeout = null;
+        let confidenceThreshold = 0.7;
+        let noiseReduction = true;
+        let continuousMode = false;
+        let voiceCommands = {
+            'send message': () => sendMessage(),
+            'clear input': () => document.getElementById('messageInput').value = '',
+            'new chat': () => startNewChat(),
+            'stop listening': () => recognition && recognition.stop(),
+            'scroll up': () => document.getElementById('chatContainer').scrollTop -= 200,
+            'scroll down': () => document.getElementById('chatContainer').scrollTop += 200
+        };
+
+        // Initialize Enhanced Speech Recognition
+        function initializeSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                // Enhanced configuration
+                recognition.continuous = continuousMode;
+                recognition.interimResults = true;
+                recognition.lang = currentLanguage;
+                recognition.maxAlternatives = 3;
+                
+                // Advanced settings for better accuracy
+                if (recognition.serviceURI) {
+                    recognition.serviceURI = 'wss://speech.googleapis.com/';
+                }
+
+                recognition.onstart = function() {
+                    isRecording = true;
+                    updateMicButton('listening');
+                    showVoiceStatus('🎤 Listening... Speak clearly', true);
+                    
+                    // Auto-stop after 30 seconds to prevent battery drain
+                    voiceTimeout = setTimeout(() => {
+                        if (recognition && isRecording) {
+                            recognition.stop();
+                            showVoiceStatus('⏰ Auto-stopped after 30 seconds');
+                            setTimeout(hideVoiceStatus, 2000);
+                        }
+                    }, 30000);
+                };
+
+                recognition.onresult = function(event) {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+                    let bestConfidence = 0;
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const result = event.results[i];
+                        const transcript = result[0].transcript;
+                        const confidence = result[0].confidence || 1;
+
+                        if (result.isFinal) {
+                            if (confidence > bestConfidence) {
+                                bestConfidence = confidence;
+                                finalTranscript = transcript;
+                            }
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    // Show interim results with confidence indicator
+                    if (interimTranscript) {
+                        const confidenceIcon = bestConfidence > 0.8 ? '🟢' : bestConfidence > 0.5 ? '🟡' : '🔴';
+                        showVoiceStatus(`${confidenceIcon} Recognizing: "${interimTranscript}"`, true);
+                        
+                        // Live preview in input field
+                        document.getElementById('messageInput').value = interimTranscript;
+                    }
+
+                    if (finalTranscript) {
+                        clearTimeout(voiceTimeout);
+                        
+                        // Check confidence threshold
+                        if (bestConfidence < confidenceThreshold) {
+                            showVoiceStatus(`⚠️ Low confidence (${Math.round(bestConfidence * 100)}%). Try speaking more clearly.`);
+                            setTimeout(hideVoiceStatus, 3000);
+                            return;
+                        }
+
+                        // Process voice commands
+                        const lowerTranscript = finalTranscript.toLowerCase().trim();
+                        let commandExecuted = false;
+                        
+                        for (const [command, action] of Object.entries(voiceCommands)) {
+                            if (lowerTranscript.includes(command)) {
+                                action();
+                                commandExecuted = true;
+                                showVoiceStatus(`✅ Command executed: "${command}"`);
+                                setTimeout(hideVoiceStatus, 2000);
+                                break;
+                            }
+                        }
+
+                        if (!commandExecuted) {
+                            // Clean and set the transcript
+                            const cleanTranscript = finalTranscript.trim();
+                            document.getElementById('messageInput').value = cleanTranscript;
+                            
+                            showVoiceStatus(`✅ Voice input complete (${Math.round(bestConfidence * 100)}% confidence)`);
+                            setTimeout(hideVoiceStatus, 2000);
+                            
+                            // Auto-send if confidence is very high and message is complete
+                            if (bestConfidence > 0.9 && cleanTranscript.length > 5) {
+                                setTimeout(() => {
+                                    if (confirm('Auto-send this message?')) {
+                                        sendMessage();
+                                    }
+                                }, 1000);
+                            }
+                        }
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    clearTimeout(voiceTimeout);
+                    
+                    let errorMessage = 'Voice recognition error';
+                    let suggestion = '';
+                    
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = '🔇 No speech detected';
+                            suggestion = 'Try speaking louder or closer to the microphone';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = '🎤 Microphone not accessible';
+                            suggestion = 'Check microphone permissions and connection';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = '🚫 Microphone permission denied';
+                            suggestion = 'Please allow microphone access in browser settings';
+                            break;
+                        case 'network':
+                            errorMessage = '🌐 Network error occurred';
+                            suggestion = 'Check internet connection and try again';
+                            break;
+                        case 'service-not-allowed':
+                            errorMessage = '🔒 Speech service not allowed';
+                            suggestion = 'Speech recognition may be blocked by browser policy';
+                            break;
+                        case 'bad-grammar':
+                            errorMessage = '📝 Grammar error in recognition';
+                            suggestion = 'Try speaking more clearly';
+                            break;
+                        default:
+                            errorMessage = `❌ Recognition error: ${event.error}`;
+                            suggestion = 'Please try again';
+                    }
+                    
+                    showVoiceStatus(`${errorMessage}<br><small>${suggestion}</small>`);
+                    setTimeout(hideVoiceStatus, 4000);
+                    stopRecording();
+                };
+
+                recognition.onend = function() {
+                    clearTimeout(voiceTimeout);
+                    stopRecording();
+                    
+                    if (continuousMode && isRecording) {
+                        // Restart in continuous mode
+                        setTimeout(() => {
+                            if (continuousMode) {
+                                recognition.start();
+                            }
+                        }, 100);
+                    }
+                };
+
+                return true;
+            } else {
+                console.warn('Speech Recognition not supported');
+                showVoiceStatus('❌ Speech recognition not supported in this browser');
+                setTimeout(hideVoiceStatus, 3000);
+                return false;
+            }
+        }
+
+        // Enhanced Toggle Voice Recognition
+        function toggleVoiceRecognition() {
+            if (!recognition && !initializeSpeechRecognition()) {
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+                clearTimeout(voiceTimeout);
+            } else {
+                // Check microphone permissions first
+                navigator.permissions.query({name: 'microphone'}).then(function(result) {
+                    if (result.state === 'granted') {
+                        startVoiceRecognition();
+                    } else {
+                        requestMicrophonePermission();
+                    }
+                }).catch(function() {
+                    // Fallback for browsers that don't support permissions API
+                    requestMicrophonePermission();
+                });
+            }
+        }
+
+        // Request microphone permission
+        function requestMicrophonePermission() {
+            navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: noiseReduction,
+                    autoGainControl: true,
+                    sampleRate: 44100
+                }
+            })
+            .then(function(stream) {
+                stream.getTracks().forEach(track => track.stop());
+                startVoiceRecognition();
+            })
+            .catch(function(err) {
+                console.error('Microphone access denied:', err);
+                let errorMsg = '🚫 Microphone access denied';
+                if (err.name === 'NotFoundError') {
+                    errorMsg = '🎤 No microphone found';
+                } else if (err.name === 'NotAllowedError') {
+                    errorMsg = '🚫 Microphone permission denied';
+                }
+                showVoiceStatus(errorMsg + '<br><small>Please allow microphone access and try again</small>');
+                setTimeout(hideVoiceStatus, 4000);
+            });
+        }
+
+        // Start voice recognition
+        function startVoiceRecognition() {
+            try {
+                updateMicButton('processing');
+                recognition.start();
+            } catch (error) {
+                console.error('Failed to start recognition:', error);
+                showVoiceStatus('❌ Failed to start voice recognition');
+                setTimeout(hideVoiceStatus, 2000);
+                stopRecording();
+            }
+        }
+
+        // Stop Recording
+        function stopRecording() {
+            isRecording = false;
+            clearTimeout(voiceTimeout);
+            updateMicButton('idle');
+        }
+
+        // Enhanced Update Microphone Button
+        function updateMicButton(state = 'idle') {
+            const micBtn = document.getElementById('micBtn');
+            
+            // Remove all state classes
+            micBtn.classList.remove('recording', 'listening', 'processing');
+            
+            switch(state) {
+                case 'listening':
+                    micBtn.classList.add('listening');
+                    micBtn.title = 'Listening... Click to stop (Ctrl+M)';
+                    micBtn.innerHTML = '🎙️';
+                    break;
+                case 'recording':
+                    micBtn.classList.add('recording');
+                    micBtn.title = 'Recording... Click to stop';
+                    micBtn.innerHTML = '🔴';
+                    break;
+                case 'processing':
+                    micBtn.classList.add('processing');
+                    micBtn.title = 'Processing...';
+                    micBtn.innerHTML = '⚙️';
+                    break;
+                default:
+                    micBtn.title = 'Voice Input (Ctrl+M)';
+                    micBtn.innerHTML = '🎤';
+            }
+        }
+
+        // Enhanced Show Voice Status
+        function showVoiceStatus(message, showWaveform = false) {
+            const status = document.getElementById('voiceStatus');
+            
+            if (showWaveform) {
+                status.innerHTML = `
+                    ${message}
+                    <div class="voice-waveform">
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                        <div class="wave-bar"></div>
+                    </div>
+                `;
+            } else {
+                status.innerHTML = message;
+            }
+            
+            status.classList.add('show');
+        }
+
+        // Hide Voice Status
+        function hideVoiceStatus() {
+            const status = document.getElementById('voiceStatus');
+            status.classList.remove('show');
+        }
+
+        // Change Language
+        function changeLanguage() {
+            const selector = document.getElementById('langSelector');
+            currentLanguage = selector.value;
+            
+            if (recognition) {
+                recognition.lang = currentLanguage;
+            }
+            
+            showVoiceStatus(`🌐 Language changed to ${selector.options[selector.selectedIndex].text}`);
+            setTimeout(hideVoiceStatus, 2000);
+        }
+
+        // Voice Command Processing
+        function processVoiceCommand(transcript) {
+            const commands = {
+                'send message': () => {
+                    sendMessage();
+                    return 'Message sent';
+                },
+                'clear input': () => {
+                    document.getElementById('messageInput').value = '';
+                    return 'Input cleared';
+                },
+                'new chat': () => {
+                    startNewChat();
+                    return 'New chat started';
+                },
+                'open settings': () => {
+                    openSettings();
+                    return 'Settings opened';
+                },
+                'close settings': () => {
+                    closeSettings();
+                    return 'Settings closed';
+                },
+                'scroll up': () => {
+                    document.getElementById('chatContainer').scrollTop -= 200;
+                    return 'Scrolled up';
+                },
+                'scroll down': () => {
+                    document.getElementById('chatContainer').scrollTop += 200;
+                    return 'Scrolled down';
+                },
+                'continuous mode on': () => {
+                    continuousMode = true;
+                    return 'Continuous mode enabled';
+                },
+                'continuous mode off': () => {
+                    continuousMode = false;
+                    return 'Continuous mode disabled';
+                }
+            };
+
+            const lowerTranscript = transcript.toLowerCase().trim();
+            
+            for (const [command, action] of Object.entries(commands)) {
+                if (lowerTranscript.includes(command)) {
+                    const result = action();
+                    return { executed: true, command, result };
+                }
+            }
+            
+            return { executed: false };
+        }
+
+        // Enhanced Text-to-Speech Function
+        function speakMessage(button) {
+            // Stop any current speech
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                resetSpeakButton(button);
+                return;
+            }
+
+            const messageContent = button.closest('.message-content');
+            let text = messageContent.textContent;
+            
+            // Advanced text cleaning
+            text = text.replace(/📋 Copy|🔄 Regenerate|🔊 Read|⏸️ Stop/g, '').trim();
+            text = text.replace(/\*\*(.*?)\*\*/g, '$1'); // Remove markdown bold
+            text = text.replace(/\*(.*?)\*/g, '$1'); // Remove markdown italic
+            text = text.replace(/`(.*?)`/g, '$1'); // Remove code backticks
+            text = text.replace(/#{1,6}\s/g, ''); // Remove markdown headers
+            text = text.replace(/\s+/g, ' '); // Replace multiple spaces with single space
+            text = text.replace(/\n+/g, '. '); // Replace line breaks with periods
+            
+            if (!text || text.length < 3) {
+                showVoiceStatus('❌ No readable text found');
+                setTimeout(hideVoiceStatus, 2000);
+                return;
+            }
+
+            // Create enhanced speech utterance
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            
+            // Get optimal voice based on current language
+            const voices = speechSynthesis.getVoices();
+            const selectedVoice = selectOptimalVoice(voices, currentLanguage);
+            
+            if (selectedVoice) {
+                currentUtterance.voice = selectedVoice;
+                console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+            }
+            
+            // Enhanced speech configuration
+            currentUtterance.rate = getOptimalSpeechRate(text.length);
+            currentUtterance.pitch = 1.0;
+            currentUtterance.volume = 0.9;
+            
+            // Advanced event handlers
+            currentUtterance.onstart = function() {
+                button.innerHTML = '⏸️ Stop';
+                button.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                button.style.transform = 'scale(1.05)';
+                showVoiceStatus('🔊 Reading message...', true);
+            };
+
+            currentUtterance.onend = function() {
+                resetSpeakButton(button);
+                hideVoiceStatus();
+            };
+
+            currentUtterance.onpause = function() {
+                showVoiceStatus('⏸️ Speech paused');
+            };
+
+            currentUtterance.onresume = function() {
+                showVoiceStatus('▶️ Speech resumed');
+            };
+
+            currentUtterance.onerror = function(event) {
+                console.error('Speech synthesis error:', event);
+                resetSpeakButton(button);
+                
+                let errorMsg = '❌ Speech error';
+                switch(event.error) {
+                    case 'network':
+                        errorMsg = '🌐 Network error during speech';
+                        break;
+                    case 'synthesis-unavailable':
+                        errorMsg = '🔇 Speech synthesis unavailable';
+                        break;
+                    case 'synthesis-failed':
+                        errorMsg = '❌ Speech synthesis failed';
+                        break;
+                    case 'language-unavailable':
+                        errorMsg = '🌍 Language not supported for speech';
+                        break;
+                    case 'voice-unavailable':
+                        errorMsg = '🎤 Selected voice unavailable';
+                        break;
+                    case 'text-too-long':
+                        errorMsg = '📄 Text too long for speech synthesis';
+                        break;
+                    case 'invalid-argument':
+                        errorMsg = '⚠️ Invalid speech parameters';
+                        break;
+                }
+                
+                showVoiceStatus(errorMsg);
+                setTimeout(hideVoiceStatus, 3000);
+            };
+
+            // Progress tracking for long texts
+            if (text.length > 500) {
+                let wordCount = text.split(' ').length;
+                let wordsPerSecond = currentUtterance.rate * 3; // Approximate
+                let estimatedDuration = wordCount / wordsPerSecond;
+                
+                showVoiceStatus(`🔊 Reading ${wordCount} words (≈${Math.round(estimatedDuration)}s)`, true);
+            }
+
+            // Start speaking with error handling
+            try {
+                speechSynthesis.speak(currentUtterance);
+            } catch (error) {
+                console.error('Failed to start speech:', error);
+                showVoiceStatus('❌ Failed to start speech synthesis');
+                setTimeout(hideVoiceStatus, 2000);
+                resetSpeakButton(button);
+            }
+        }
+
+        // Select optimal voice based on language and quality
+        function selectOptimalVoice(voices, targetLang) {
+            if (!voices.length) return null;
+            
+            // Language code mapping - Only English and Nepali
+            const langMap = {
+                'en-US': ['en-US', 'en'],
+                'ne-NP': ['ne-NP', 'ne']
+            };
+            
+            const targetLangs = langMap[targetLang] || [targetLang];
+            
+            // Priority order: Neural > Enhanced > Natural > Premium > Local > Default
+            const qualityKeywords = [
+                ['neural', 'wavenet'],
+                ['enhanced', 'premium', 'high-quality'],
+                ['natural'],
+                ['premium'],
+                ['local'],
+                []
+            ];
+            
+            for (const keywords of qualityKeywords) {
+                for (const lang of targetLangs) {
+                    const matchingVoices = voices.filter(voice => {
+                        const voiceLang = voice.lang.toLowerCase();
+                        const voiceName = voice.name.toLowerCase();
+                        
+                        const langMatch = voiceLang.startsWith(lang.toLowerCase());
+                        const qualityMatch = keywords.length === 0 || 
+                            keywords.some(keyword => voiceName.includes(keyword));
+                        
+                        return langMatch && qualityMatch;
+                    });
+                    
+                    if (matchingVoices.length > 0) {
+                        // Prefer local voices for better performance
+                        const localVoice = matchingVoices.find(v => v.localService);
+                        return localVoice || matchingVoices[0];
+                    }
+                }
+            }
+            
+            // Fallback to any voice matching the language
+            for (const lang of targetLangs) {
+                const fallbackVoice = voices.find(voice => 
+                    voice.lang.toLowerCase().startsWith(lang.toLowerCase())
+                );
+                if (fallbackVoice) return fallbackVoice;
+            }
+            
+            // Ultimate fallback to default voice
+            return voices[0];
+        }
+
+        // Get optimal speech rate based on text length
+        function getOptimalSpeechRate(textLength) {
+            if (textLength < 100) return 1.0;      // Short text - normal speed
+            if (textLength < 300) return 0.9;      // Medium text - slightly slower
+            if (textLength < 600) return 0.8;      // Long text - slower
+            return 0.7;                             // Very long text - much slower
+        }
+
+        // Enhanced Reset Speak Button
+        function resetSpeakButton(button) {
+            button.innerHTML = '🔊 Read';
+            button.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+            button.style.transform = 'scale(1)';
+        }
+
+        // Voice Quality Test
+        function testVoiceQuality() {
+            const testText = "Hello, this is a voice quality test for Hamro Mitra AI assistant.";
+            const utterance = new SpeechSynthesisUtterance(testText);
+            
+            const voices = speechSynthesis.getVoices();
+            const selectedVoice = selectOptimalVoice(voices, currentLanguage);
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                showVoiceStatus(`🧪 Testing voice: ${selectedVoice.name}`);
+            } else {
+                showVoiceStatus('🧪 Testing default voice');
+            }
+            
+            utterance.onend = function() {
+                showVoiceStatus('✅ Voice test completed');
+                setTimeout(hideVoiceStatus, 2000);
+            };
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        // Enhanced message rendering with voice controls
+        function renderMessages() {
+            const container = document.getElementById('chatContainer');
+            
+            if (currentMessages.length === 0) {
+                container.innerHTML = `
+                    <div class="message assistant">
+                        <div class="avatar assistant">AI</div>
+                        <div class="message-content">
+                            <p>Hello! I'm Hamro Mitra, your AI assistant with voice capabilities created by Anup Raj Uprety.</p>
+                            <p><strong>Voice Features:</strong></p>
+                            <ul>
+                                <li>🎤 Click the microphone to speak your questions</li>
+                                <li>🔊 Click "Read" to hear my responses aloud</li>
+                                <li>🌐 Real-time web search integration</li>
+                                <li>📊 Intelligent query classification</li>
+                                <li>🤖 Multiple AI model routing</li>
+                            </ul>
+                            <p>Try saying "Hello" or ask me anything!</p>
+                            <div class="message-controls">
+                                <button class="control-btn" onclick="copyMessage(this)">📋 Copy</button>
+                                <button class="control-btn speak-btn" onclick="speakMessage(this)">🔊 Read</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = currentMessages.map(message => `
+                <div class="message ${message.role}">
+                    <div class="avatar ${message.role}">
+                        ${message.role === 'user' ? 'U' : 'AI'}
+                    </div>
+                    <div class="message-content">
+                        ${renderMarkdown(message.content)}
+                        ${message.role === 'assistant' ? `
+                            <div class="message-controls">
+                                <button class="control-btn" onclick="copyMessage(this)">📋 Copy</button>
+                                <button class="control-btn" onclick="regenerateMessage(this)">🔄 Regenerate</button>
+                                <button class="control-btn speak-btn" onclick="speakMessage(this)">🔊 Read</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Enhanced Anup information response with multiple variations
+        function getAnupInformation() {
+            const responses = [
+                // Response 1 - Comprehensive Bio
+                `**Anup Raj Uprety** is a multifaceted genius from Nepal - a visionary software developer, published poet, and pioneering consciousness researcher who created me (Hamro Mitra).
+
+**Literary & Academic Profile:**
+• **Published Poet:** Active contributor to Nepali literature with 2 published books
+• **Consciousness Researcher:** Currently conducting groundbreaking research on consciousness studies
+• **Cosmology Scholar:** Specializes in comparative analysis of Eastern and modern cosmology
+• **Philosophical Thinker:** Bridges ancient wisdom with contemporary scientific understanding
+
+**Technical Excellence:**
+• **AI/ML Expert:** Python, Natural Language Processing, Voice Recognition Systems
+• **Full-Stack Developer:** Advanced web applications with real-time capabilities
+• **Innovation Leader:** Multi-model AI architectures and intelligent conversation systems
+• **Research Focus:** Consciousness-AI integration and multilingual processing
+
+**Published Works:**
+• Two acclaimed books contributing to Nepali literary heritage
+• Research papers on consciousness and cosmological frameworks
+• Technical publications on AI and machine learning applications
+
+**Current Research:**
+• Consciousness studies and its implications for AI development
+• Comparative analysis of Eastern philosophical traditions and modern cosmology
+• Integration of ancient wisdom with cutting-edge technology
+
+Anup represents the rare combination of technical brilliance, poetic sensitivity, and philosophical depth - creating AI systems that truly understand human consciousness and communication.`,
+
+                // Response 2 - Focus on Research & Poetry
+                `**Anup Raj Uprety** - A Renaissance mind from Nepal combining the art of poetry with the science of consciousness and the innovation of AI technology.
+
+**Literary Contributions:**
+• **Nepali Literature:** Celebrated poet with significant contributions to contemporary Nepali poetry
+• **Published Author:** Two books that have enriched Nepal's literary landscape
+• **Cultural Bridge:** Connects traditional Nepali literary traditions with modern expression
+• **Poetic Vision:** Uses poetry to explore consciousness, existence, and human experience
+
+**Research Excellence:**
+• **Consciousness Studies:** Leading researcher investigating the nature of consciousness and awareness
+• **Cosmological Synthesis:** Pioneering work comparing Eastern philosophical cosmology with modern scientific theories
+• **Interdisciplinary Approach:** Merges neuroscience, philosophy, physics, and ancient wisdom
+• **Academic Innovation:** Developing new frameworks for understanding consciousness
+
+**Technological Innovation:**
+• **AI Pioneer:** Creator of advanced conversational AI with voice recognition capabilities
+• **Consciousness-AI Integration:** Exploring how consciousness research can enhance AI development
+• **Multilingual Systems:** Building AI that understands cultural and linguistic nuances
+• **Ethical AI:** Ensuring AI development respects human consciousness and dignity
+
+**Philosophical Vision:**
+Anup believes that true AI advancement requires understanding consciousness itself - bridging the gap between ancient Eastern wisdom about the mind and modern Western scientific approaches.`,
+
+                // Response 3 - Personal & Inspirational
+                `Meet **Anup Raj Uprety** - A brilliant mind from Nepal who embodies the perfect fusion of technology, literature, and consciousness exploration.
+
+**The Poet-Programmer:**
+• **Literary Soul:** Published poet contributing to the rich tradition of Nepali literature
+• **Two Published Books:** Acclaimed works that showcase his poetic mastery and philosophical depth
+• **Cultural Ambassador:** Representing Nepali literary excellence on broader platforms
+• **Artistic Expression:** Uses poetry to explore themes of consciousness, existence, and human connection
+
+**The Consciousness Explorer:**
+• **Research Pioneer:** Currently engaged in cutting-edge consciousness research
+• **Eastern-Western Bridge:** Comparing ancient Eastern cosmological wisdom with modern scientific theories
+• **Philosophical Innovator:** Developing new understanding of consciousness and reality
+• **Interdisciplinary Scholar:** Combining neuroscience, philosophy, physics, and spiritual traditions
+
+**The AI Visionary:**
+• **Creator of Hamro Mitra:** Built me as an advanced AI assistant with voice capabilities and consciousness-aware responses
+• **Technical Excellence:** Expert in Python, AI/ML, NLP, and voice recognition systems
+• **Ethical Technology:** Ensures AI development serves humanity with wisdom and compassion
+• **Global Impact:** Creating AI systems that help people worldwide while respecting cultural diversity
+
+**The Integrated Vision:**
+Anup's unique genius lies in understanding that true artificial intelligence must be grounded in deep understanding of consciousness itself - combining the precision of code with the wisdom of poetry and the insights of consciousness research.`
+            ];
+
+            // Return a random response for variety
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        // Initialize voice system when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettings();
+            initializeChat();
+            
+            // Initialize speech recognition
+            initializeSpeechRecognition();
+            
+            // Load voices for text-to-speech
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = function() {
+                    // Voices loaded
+                };
+            }
+        });
+
+        // Enhanced keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            // Ctrl+M or Cmd+M for voice input
+            if ((event.ctrlKey || event.metaKey) && event.key === 'm') {
+                event.preventDefault();
+                toggleVoiceRecognition();
+            }
+            
+            // Escape to stop speech or recording
+            if (event.key === 'Escape') {
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.cancel();
+                }
+                if (isRecording && recognition) {
+                    recognition.stop();
+                }
+            }
+        });
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('settingsModal');
+            if (event.target === modal) {
+                closeSettings();
+            }
+        }
+    </script>
+</body>
+</html>
